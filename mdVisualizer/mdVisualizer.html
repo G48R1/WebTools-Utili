@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizzatore Markdown Pro</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Librerie esterne CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <!-- Font Google Inter & Fira Code -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans print:bg-white">
+
+    <!-- Header Navigation -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm print:hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <!-- Link Torna alla Home -->
+                <a href="../index.html" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors mb-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Torna alla Home
+                </a>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-500 text-white rounded-xl flex items-center justify-center font-bold text-lg shadow-md shadow-blue-500/20">
+                        M↓
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Visualizzatore Markdown</h1>
+                        <p class="text-slate-500 text-xs sm:text-sm mt-0.5">Renderizza e analizza i tuoi file .md 100% locale sul tuo browser.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toolbar Controlli -->
+            <div class="flex items-center gap-2 flex-wrap">
+                <!-- Toggle Vista Anteprima / RAW -->
+                <div class="inline-flex bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-medium">
+                    <button id="btnViewRendered" onclick="switchView('rendered')" class="px-3 py-1.5 rounded-md bg-white text-blue-600 shadow-sm font-semibold transition-all">👁️ Anteprima</button>
+                    <button id="btnViewRaw" onclick="switchView('raw')" class="px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition-all font-medium">💻 Sorgente RAW</button>
+                </div>
+
+                <label for="fileInput" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg cursor-pointer transition-colors shadow-sm">
+                    📂 Sfoglia File
+                </label>
+                <input type="file" id="fileInput" accept=".md,.markdown,.txt,text/plain,text/markdown" class="hidden" onchange="handleFileSelect(event)">
+
+                <button onclick="resetToDemo()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors shadow-sm" title="Ripristina l'esempio di benvenuto">
+                    🔄 Esempio
+                </button>
+
+                <button onclick="window.print()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors shadow-sm" title="Stampa o Salva come PDF">
+                    🖨️ Stampa / PDF
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Layout Principale -->
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 print:p-0 print:max-w-none">
+
+        <!-- Area Trascina & Rilascia -->
+        <div id="dropZone" onclick="document.getElementById('fileInput').click()" class="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-white hover:bg-blue-50/50 rounded-2xl p-8 text-center transition-all cursor-pointer mb-6 group shadow-sm print:hidden">
+            <span class="text-4xl mb-2 block group-hover:scale-110 transition-transform">📄</span>
+            <div class="text-base font-semibold text-slate-800">Trascina qui il tuo file Markdown (.md)</div>
+            <div class="text-xs text-slate-500 mt-1">oppure clicca qui per selezionarlo dal computer</div>
+        </div>
+
+        <!-- Banner Avvisi / Errori -->
+        <div id="statusBanner" class="hidden p-4 rounded-xl mb-6 text-sm flex items-start gap-3 transition-all border print:hidden">
+            <span id="bannerIcon" class="text-lg leading-none">⚠️</span>
+            <div id="bannerContent" class="flex-1"></div>
+        </div>
+
+        <!-- Barra Info Documento -->
+        <div class="bg-white border border-slate-200 rounded-t-2xl px-6 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs text-slate-500 border-b-0">
+            <div class="font-semibold text-slate-800 flex items-center gap-2">
+                <span>📑</span> <span id="fileNameText">Documento di Esempio</span>
+            </div>
+            <div class="flex gap-3 text-slate-500">
+                <span id="statLines">0 righe</span> • 
+                <span id="statWords">0 parole</span> • 
+                <span id="statSize">0 KB</span>
+            </div>
+        </div>
+
+        <!-- Contenitore Documento Renderizzato (Stili Markdown gestiti al 100% con utilità Tailwind) -->
+        <div id="renderedContent" class="bg-white border border-slate-200 rounded-b-2xl p-6 sm:p-10 shadow-sm min-h-[400px] overflow-x-auto text-slate-700 text-base leading-relaxed print:border-none print:shadow-none print:p-0
+            [&_h1]:text-2xl [&_h1]:sm:text-3xl [&_h1]:font-extrabold [&_h1]:text-slate-900 [&_h1]:mt-2 [&_h1]:mb-6 [&_h1]:pb-3 [&_h1]:border-b-2 [&_h1]:border-slate-200 [&_h1]:relative
+            [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-slate-800 [&_h2]:mt-8 [&_h2]:mb-4 [&_h2]:py-1.5 [&_h2]:px-3.5 [&_h2]:bg-gradient-to-r [&_h2]:from-blue-50 [&_h2]:to-white [&_h2]:border-l-4 [&_h2]:border-blue-600 [&_h2]:rounded-r-lg
+            [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-blue-600 [&_h3]:mt-6 [&_h3]:mb-2
+            [&_p]:mb-4 [&_p]:leading-relaxed
+            [&_strong]:text-slate-900 [&_strong]:font-semibold [&_strong]:bg-slate-100 [&_strong]:px-1.5 [&_strong]:py-0.5 [&_strong]:rounded [&_strong]:border [&_strong]:border-slate-200
+            [&_a]:text-blue-600 [&_a]:font-medium [&_a]:hover:underline
+            [&_ul]:mb-4 [&_ul]:pl-6 [&_ul]:list-disc [&_ol]:mb-4 [&_ol]:pl-6 [&_ol]:list-decimal [&_li]:mb-1.5 [&_li::marker]:text-blue-600 [&_li::marker]:font-bold
+            [&_blockquote]:my-6 [&_blockquote]:py-3 [&_blockquote]:px-4 [&_blockquote]:text-slate-600 [&_blockquote]:bg-slate-50 [&_blockquote]:border-l-4 [&_blockquote]:border-blue-600 [&_blockquote]:rounded-r-xl [&_blockquote]:italic [&_blockquote_p]:mb-0
+            [&_pre]:bg-slate-900 [&_pre]:text-slate-100 [&_pre]:p-5 [&_pre]:rounded-xl [&_pre]:my-6 [&_pre]:relative [&_pre]:font-mono [&_pre]:text-sm [&_pre]:leading-relaxed [&_pre]:shadow-inner
+            [&_:not(pre)>code]:font-mono [&_:not(pre)>code]:text-sm [&_:not(pre)>code]:bg-slate-100 [&_:not(pre)>code]:text-slate-900 [&_:not(pre)>code]:px-1.5 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:rounded [&_:not(pre)>code]:border [&_:not(pre)>code]:border-slate-200
+            [&_table]:w-full [&_table]:my-6 [&_table]:border-collapse [&_table]:rounded-lg [&_table]:overflow-hidden [&_table]:border [&_table]:border-slate-200
+            [&_th]:bg-slate-50 [&_th]:p-3 [&_th]:text-left [&_th]:font-semibold [&_th]:text-slate-700 [&_th]:border-b [&_th]:border-slate-200
+            [&_td]:p-3 [&_td]:border-b [&_td]:border-slate-200 [&_tr:last-child_td]:border-b-0 [&_tr:nth-child(even)_td]:bg-slate-50/50
+            [&_img]:rounded-xl [&_img]:my-6 [&_img]:shadow-md
+            [&_hr]:my-8 [&_hr]:border-0 [&_hr]:h-0.5 [&_hr]:bg-gradient-to-r [&_hr]:from-transparent [&_hr]:via-slate-300 [&_hr]:to-transparent
+            [&_input[type='checkbox']]:mr-2 [&_input[type='checkbox']]:accent-blue-600">
+            <!-- Il contenuto viene inserito via JS -->
+        </div>
+
+        <!-- Area Codice Grezzo (RAW) -->
+        <pre id="rawContent" class="hidden whitespace-pre-wrap break-words font-mono text-xs sm:text-sm bg-slate-900 text-slate-100 p-6 rounded-b-2xl overflow-x-auto min-h-[400px] border border-slate-200 border-t-0 shadow-sm"></pre>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 text-center py-6 text-xs text-slate-500 mt-12 print:hidden">
+        Visualizzatore Markdown con Sanitizzazione HTML sicura e Gestione Errori.
+    </footer>
+
+    <!-- Logica JavaScript -->
+    <script>
+        const defaultMarkdown = `# 🚀 Documento di Prova: Gestione del Progetto Demo
+
+Benvenuto nel **Visualizzatore Markdown Pro**. Questo documento dimostrativo illustra le funzionalità di renderizzazione e la gestione dei file.
+
+---
+
+## 📍 Sezioni Principali
+
+### 1. Modulo di Configurazione
+
+* **Area Principale**: Impostazioni base e la celebre *Configurazione Avanzata* (Sistema).
+* **Sezione Locale**:
+* Elementi standard di personalizzazione.
+* *Interfaccia Utente* con il caratteristico layout responsive.
+* Pannello di controllo e Registro degli accessi.
+
+
+* **Prestazioni**: Test di carico del modulo principale (4 ms).
+
+### 2. Modulo Analytics ("Il Pannello di Controllo")
+
+* **Punti di interesse**:
+* Grafici in tempo reale e la dashboard principale.
+* *Report di Rendimento Settimanale*.
+* Vista globale con panoramica a 360°.
+
+
+
+---
+
+## 📊 Tabella dei Componenti e delle Specifiche
+
+| Componente / Funzione | Descrizione | Stato Implementazione |
+| --- | --- | --- |
+| **Autenticazione** | Sistema di accesso sicuro per gli utenti | Completato e verificato |
+| **Database Locale** | Gestione della memoria temporanea | Attivo di default |
+| **Filtro Dati** | Algoritmo per l'elaborazione rapida | In corso di ottimizzazione |
+| **Esportazione PDF** | Salvataggio rapido dei documenti | Pronta per la produzione |
+
+---
+
+## 💻 Esempio di Codice (Script di Caricamento)
+
+\`\`\`javascript
+// Funzione per caricare un file Markdown con gestione errori
+function loadMarkdownFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        console.log("File caricato con successo!");
+    };
+    reader.onerror = function() {
+        console.error("Errore nella lettura del file.");
+    };
+    reader.readAsText(file);
+}
+\`\`\`
+
+> 💡 **Nota**: Puoi trascinare qualsiasi file \`.md\` o \`.txt\` direttamente in questa pagina per visualizzarlo istantaneamente!
+`;
+
+        let currentMode = 'rendered';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            setupDragAndDrop();
+            processMarkdown(defaultMarkdown, "Esempio.md");
+        });
+
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('border-blue-500', 'bg-blue-50/50'), false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('border-blue-500', 'bg-blue-50/50'), false);
+            });
+
+            dropZone.addEventListener('drop', handleDrop, false);
+        }
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) loadFile(files[0]);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) loadFile(files[0]);
+        }
+
+        function loadFile(file) {
+            if (!file) return;
+
+            const fileName = file.name;
+            const fileExt = fileName.split('.').pop().toLowerCase();
+            
+            if (!['md', 'markdown', 'txt', 'text'].includes(fileExt)) {
+                showBanner('warning', `⚠️ Il file <strong>${escapeHtml(fileName)}</strong> ha un'estensione non standard (.${fileExt}). Tenteremo comunque di leggerlo come testo.`);
+            } else {
+                hideBanner();
+            }
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const content = e.target.result;
+                processMarkdown(content, fileName, file.size);
+            };
+
+            reader.onerror = function() {
+                showBanner('error', `❌ <strong>Errore di Lettura:</strong> Impossibile leggere il file "${escapeHtml(fileName)}". Verifica che il file non sia protetto o danneggiato.`);
+            };
+
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        function processMarkdown(rawText, fileName = "Documento.md", fileSize = null) {
+            if (!rawText || rawText.trim() === "") {
+                showBanner('warning', `⚠️ Il file <strong>${escapeHtml(fileName)}</strong> è completamente vuoto.`);
+                renderOutput("", "", fileName, fileSize || 0);
+                return;
+            }
+
+            if (isBinaryContent(rawText)) {
+                showBanner('error', `❌ <strong>Formato Non Supportato:</strong> Il file "${escapeHtml(fileName)}" sembra contenere dati binari.`);
+                renderOutput("<p class='text-red-600 font-semibold'>Impossibile visualizzare file binari.</p>", rawText, fileName, fileSize || rawText.length);
+                return;
+            }
+
+            const syntaxIssues = analyzeMarkdownSyntax(rawText);
+
+            let renderedHtml = "";
+            let hasParsingError = false;
+
+            try {
+                marked.setOptions({
+                    gfm: true,
+                    breaks: true,
+                    headerIds: true,
+                    mangle: false,
+                    highlight: function(code, lang) {
+                        if (lang && hljs.getLanguage(lang)) {
+                            try {
+                                return hljs.highlight(code, { language: lang }).value;
+                            } catch (err) {}
+                        }
+                        return hljs.highlightAuto(code).value;
+                    }
+                });
+
+                const rawParsed = marked.parse(rawText);
+                renderedHtml = DOMPurify.sanitize(rawParsed, { ADD_ATTR: ['target'] });
+
+            } catch (err) {
+                console.error("Errore Marked.js:", err);
+                hasParsingError = true;
+                renderedHtml = `<div class="bg-red-50 border border-red-200 p-4 rounded-xl text-red-900">
+                    <h3 class="font-bold text-lg mb-1">⚠️ Errore di Parsing Markdown</h3>
+                    <p>Si è verificato un errore durante l'interpretazione del Markdown.</p>
+                </div>
+                <pre><code>${escapeHtml(rawText)}</code></pre>`;
+            }
+
+            if (hasParsingError) {
+                showBanner('error', `❌ Errore critico durante la conversione del file "${escapeHtml(fileName)}".`);
+            } else if (syntaxIssues.length > 0) {
+                let issuesList = syntaxIssues.map(issue => `<li>${issue}</li>`).join('');
+                showBanner('warning', `
+                    <strong>Avviso sulla formattazione del file Markdown:</strong>
+                    <br>Il file è stato renderizzato, ma presenta alcune irregolarità nella sintassi:
+                    <ul class="list-disc pl-5 mt-1 space-y-1">${issuesList}</ul>
+                `);
+            } else if (!fileSize && fileName === "CinqueTerre_Esempio.md") {
+                hideBanner();
+            } else {
+                showBanner('success', `✅ File <strong>${escapeHtml(fileName)}</strong> caricato e renderizzato correttamente.`);
+                setTimeout(() => {
+                    const banner = document.getElementById('statusBanner');
+                    if (banner.classList.contains('bg-emerald-50')) hideBanner();
+                }, 4000);
+            }
+
+            renderOutput(renderedHtml, rawText, fileName, fileSize || new Blob([rawText]).size);
+        }
+
+        function renderOutput(htmlContent, rawText, fileName, sizeBytes) {
+            document.getElementById('renderedContent').innerHTML = htmlContent;
+            document.getElementById('rawContent').textContent = rawText;
+
+            document.getElementById('fileNameText').textContent = fileName;
+            
+            const lines = rawText ? rawText.split('\n').length : 0;
+            const words = rawText ? rawText.trim().split(/\s+/).filter(w => w.length > 0).length : 0;
+            const sizeKB = (sizeBytes / 1024).toFixed(1);
+
+            document.getElementById('statLines').textContent = `${lines} righe`;
+            document.getElementById('statWords').textContent = `${words} parole`;
+            document.getElementById('statSize').textContent = `${sizeKB} KB`;
+
+            addCodeCopyButtons();
+        }
+
+        function analyzeMarkdownSyntax(text) {
+            const warnings = [];
+            const codeBlockMatches = text.match(/^```/gm);
+            if (codeBlockMatches && codeBlockMatches.length % 2 !== 0) {
+                warnings.push("Trovato un blocco di codice con triplo apice (```) non chiuso correttamente.");
+            }
+
+            if (/^#{1,6}[a-zA-Z0-9àèéìòù]/m.test(text)) {
+                warnings.push("Alcune intestazioni non hanno uno spazio dopo il simbolo '#' (es. <code>#Titolo</code> invece di <code># Titolo</code>).");
+            }
+
+            const lines = text.split('\n');
+            let inTable = false;
+            let tableHeaderPipes = 0;
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.startsWith('|') && line.endsWith('|')) {
+                    const pipeCount = (line.match(/\|/g) || []).length;
+                    if (!inTable) {
+                        inTable = true;
+                        tableHeaderPipes = pipeCount;
+                    } else if (pipeCount !== tableHeaderPipes && !line.includes('---')) {
+                        warnings.push(`Possibile colonna mancante o disallineata nella tabella alla riga ${i + 1}.`);
+                        break;
+                    }
+                } else {
+                    inTable = false;
+                }
+            }
+
+            if (/<[a-zA-Z][^>]*$/m.test(text)) {
+                warnings.push("Trovato un tag HTML incompleto o non chiuso.");
+            }
+
+            return warnings;
+        }
+
+        function isBinaryContent(text) {
+            let nullCount = 0;
+            const sample = text.slice(0, 1000);
+            for (let i = 0; i < sample.length; i++) {
+                const charCode = sample.charCodeAt(i);
+                if (charCode === 0) return true;
+                if (charCode < 9 || (charCode > 13 && charCode < 32)) nullCount++;
+            }
+            return (nullCount / sample.length) > 0.1;
+        }
+
+        function showBanner(type, message) {
+            const banner = document.getElementById('statusBanner');
+            const content = document.getElementById('bannerContent');
+            const icon = document.getElementById('bannerIcon');
+
+            content.innerHTML = message;
+
+            if (type === 'warning') {
+                icon.textContent = '⚠️';
+                banner.className = 'p-4 rounded-xl mb-6 text-sm flex items-start gap-3 transition-all border bg-amber-50 text-amber-900 border-amber-200';
+            } else if (type === 'error') {
+                icon.textContent = '❌';
+                banner.className = 'p-4 rounded-xl mb-6 text-sm flex items-start gap-3 transition-all border bg-red-50 text-red-900 border-red-200';
+            } else if (type === 'success') {
+                icon.textContent = '✅';
+                banner.className = 'p-4 rounded-xl mb-6 text-sm flex items-start gap-3 transition-all border bg-emerald-50 text-emerald-900 border-emerald-200';
+            }
+
+            banner.classList.remove('hidden');
+        }
+
+        function hideBanner() {
+            document.getElementById('statusBanner').classList.add('hidden');
+        }
+
+        function switchView(mode) {
+            currentMode = mode;
+            const btnRendered = document.getElementById('btnViewRendered');
+            const btnRaw = document.getElementById('btnViewRaw');
+            const renderedContent = document.getElementById('renderedContent');
+            const rawContent = document.getElementById('rawContent');
+
+            if (mode === 'rendered') {
+                btnRendered.className = "px-3 py-1.5 rounded-md bg-white text-blue-600 shadow-sm font-semibold transition-all";
+                btnRaw.className = "px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition-all font-medium";
+                renderedContent.classList.remove('hidden');
+                rawContent.classList.add('hidden');
+            } else {
+                btnRaw.className = "px-3 py-1.5 rounded-md bg-white text-blue-600 shadow-sm font-semibold transition-all";
+                btnRendered.className = "px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition-all font-medium";
+                renderedContent.classList.add('hidden');
+                rawContent.classList.remove('hidden');
+            }
+        }
+
+        function addCodeCopyButtons() {
+            const codeBlocks = document.querySelectorAll('#renderedContent pre');
+            codeBlocks.forEach((pre) => {
+                if (pre.querySelector('.code-copy-btn')) return;
+
+                const btn = document.createElement('button');
+                btn.className = 'code-copy-btn absolute top-2.5 right-2.5 bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white border border-white/20 rounded-md px-2.5 py-1 text-xs font-medium transition-all cursor-pointer';
+                btn.textContent = 'Copia';
+                
+                btn.addEventListener('click', () => {
+                    const code = pre.querySelector('code')?.innerText || pre.innerText;
+                    navigator.clipboard.writeText(code).then(() => {
+                        btn.textContent = 'Copiato!';
+                        setTimeout(() => btn.textContent = 'Copia', 2000);
+                    });
+                });
+
+                pre.appendChild(btn);
+            });
+        }
+
+        function resetToDemo() {
+            hideBanner();
+            processMarkdown(defaultMarkdown, "CinqueTerre_Esempio.md");
+            switchView('rendered');
+            document.getElementById('fileInput').value = '';
+        }
+
+        function escapeHtml(str) {
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>

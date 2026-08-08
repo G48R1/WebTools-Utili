@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizzatore Markdown Pro</title>
+
+    <!-- Librerie esterne da CDN -->
+    <!-- Marked.js: Parsing Markdown in HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- DOMPurify: Sanitizzazione HTML per sicurezza e protezione da tag malformati/maliziosi -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
+    <!-- Highlight.js: Evidenziazione sintassi codice -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <!-- Font Google Inter & Fira Code -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-light: #eff6ff;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --code-bg: #1e293b;
+            --code-text: #f8fafc;
+            
+            --warning-bg: #fffbeb;
+            --warning-border: #fde68a;
+            --warning-text: #92400e;
+            
+            --error-bg: #fef2f2;
+            --error-border: #fecaca;
+            --error-text: #991b1b;
+
+            --success-bg: #f0fdf4;
+            --success-border: #bbf7d0;
+            --success-text: #166534;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Navigation */
+        header {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .header-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .brand-icon {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+        }
+
+        .brand-text h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+            line-height: 1.2;
+        }
+
+        .brand-text p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.55rem 1.1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background-color: var(--bg-page);
+            border-color: #cbd5e1;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+
+        .view-toggle {
+            display: flex;
+            background-color: #f1f5f9;
+            padding: 3px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .view-toggle button {
+            border: none;
+            background: transparent;
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .view-toggle button.active {
+            background-color: white;
+            color: var(--primary);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            font-weight: 600;
+        }
+
+        /* Layout Principale */
+        main {
+            max-width: 1100px;
+            width: 100%;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+            flex: 1;
+        }
+
+        /* Area Trascina & Rilascia / Pulsante Caricamento */
+        .drop-zone {
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            background-color: var(--bg-card);
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: var(--primary);
+            background-color: var(--primary-light);
+        }
+
+        .drop-zone-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+            display: block;
+        }
+
+        .drop-zone-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: var(--text-main);
+        }
+
+        .drop-zone-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* Banner Avvisi / Errori */
+        .banner {
+            padding: 1rem 1.25rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            display: none;
+            align-items: flex-start;
+            gap: 0.75rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .banner.warning {
+            display: flex;
+            background-color: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            color: var(--warning-text);
+        }
+
+        .banner.error {
+            display: flex;
+            background-color: var(--error-bg);
+            border: 1px solid var(--error-border);
+            color: var(--error-text);
+        }
+
+        .banner.success {
+            display: flex;
+            background-color: var(--success-bg);
+            border: 1px solid var(--success-border);
+            color: var(--success-text);
+        }
+
+        .banner-icon {
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        .banner-content {
+            flex: 1;
+        }
+
+        .banner-content ul {
+            margin-top: 0.4rem;
+            padding-left: 1.2rem;
+        }
+
+        /* Barra Info Documento */
+        .doc-info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-card);
+            padding: 0.75rem 1.25rem;
+            border-radius: 10px 10px 0 0;
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .doc-filename {
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .doc-stats {
+            display: flex;
+            gap: 1rem;
+        }
+
+        /* Contenitore Documento Renderizzato */
+        .paper {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 0 0 10px 10px;
+            padding: 3rem 3.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            min-height: 400px;
+            overflow-x: auto;
+        }
+
+        @media (max-width: 768px) {
+            .paper {
+                padding: 1.5rem 1.25rem;
+            }
+        }
+
+        /* Stili per il contenuto Markdown Renderizzato */
+        .markdown-body {
+            color: var(--text-main);
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        .markdown-body h1,
+        .markdown-body h2,
+        .markdown-body h3,
+        .markdown-body h4,
+        .markdown-body h5,
+        .markdown-body h6 {
+            color: #0f172a;
+            margin-top: 1.8em;
+            margin-bottom: 0.8em;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .markdown-body h1:first-child,
+        .markdown-body h2:first-child {
+            margin-top: 0;
+        }
+
+        .markdown-body h1 {
+            font-size: 2.1rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .markdown-body h2 {
+            font-size: 1.5rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .markdown-body h3 { font-size: 1.25rem; }
+        .markdown-body h4 { font-size: 1.1rem; }
+
+        .markdown-body p {
+            margin-bottom: 1.2em;
+        }
+
+        .markdown-body a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .markdown-body a:hover {
+            text-decoration: underline;
+        }
+
+        .markdown-body ul, 
+        .markdown-body ol {
+            margin-bottom: 1.2em;
+            padding-left: 1.8em;
+        }
+
+        .markdown-body li {
+            margin-bottom: 0.3em;
+        }
+
+        .markdown-body blockquote {
+            margin: 1.5em 0;
+            padding: 0.8em 1.2em;
+            color: #475569;
+            background-color: #f8fafc;
+            border-left: 4px solid var(--primary);
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+        }
+
+        .markdown-body blockquote p:last-child {
+            margin-bottom: 0;
+        }
+
+        .markdown-body pre {
+            background-color: var(--code-bg);
+            color: var(--code-text);
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1.5em 0;
+            position: relative;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .markdown-body code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875em;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .markdown-body pre code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+            border: none;
+        }
+
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5em 0;
+            font-size: 0.95rem;
+        }
+
+        .markdown-body th, 
+        .markdown-body td {
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        .markdown-body th {
+            background-color: #f1f5f9;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .markdown-body tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        .markdown-body img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 1em 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .markdown-body hr {
+            height: 1px;
+            background-color: var(--border-color);
+            border: none;
+            margin: 2em 0;
+        }
+
+        /* Checkbox Task List */
+        .markdown-body input[type="checkbox"] {
+            margin-right: 0.5em;
+            transform: scale(1.1);
+        }
+
+
+
+
+        /* =========================================================
+           STILI AVANZATI PER ELEMENTI SEMPLICI (TITOLI, ELENCHI, ECC.)
+           ========================================================= */
+
+        .markdown-body {
+            color: #334155;
+            font-size: 1.05rem;
+            line-height: 1.75;
+        }
+
+        /* Titolo Principale (H1): Effetto sfumatura + linea d'accento sotto */
+        .markdown-body h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-top: 0.5em;
+            margin-bottom: 1em;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--primary-light);
+            position: relative;
+        }
+
+        /* Dettaglio decorativo sotto H1 */
+        .markdown-body h1::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            width: 80px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), #3b82f6);
+            border-radius: 2px;
+        }
+
+        /* Sottotitoli (H2): Bordo colorato a sinistra e sfondo sfumato leggero */
+        .markdown-body h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-top: 2em;
+            margin-bottom: 0.8em;
+            padding: 0.4rem 0.8rem;
+            background: linear-gradient(90deg, #eff6ff 0%, #ffffff 100%);
+            border-left: 4px solid var(--primary);
+            border-radius: 0 8px 8px 0;
+        }
+
+        /* Sezioni di terzo livello (H3) */
+        .markdown-body h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin-top: 1.6em;
+            margin-bottom: 0.6em;
+        }
+
+        /* Testo in grassetto (Strong): Evidenziatore delicato "stile pillola" */
+        .markdown-body strong {
+            color: #0f172a;
+            font-weight: 600;
+            background-color: #f1f5f9;
+            padding: 0.1em 0.35em;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* Elenchi Puntati e Numerati (UL / OL) */
+        .markdown-body ul, 
+        .markdown-body ol {
+            margin-bottom: 1.4em;
+            padding-left: 1.4em;
+        }
+
+        /* Dettaglio per i punti degli elenchi: colore primario per i pallini/numeri */
+        .markdown-body li::marker {
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        /* Singoli elementi dell'elenco con maggiore spaziatura e leggibilità */
+        .markdown-body li {
+            margin-bottom: 0.45em;
+            padding-left: 0.25em;
+        }
+
+        /* Paragrafi standard */
+        .markdown-body p {
+            margin-bottom: 1.2em;
+        }
+
+        /* Linea divisoria (---) elegante */
+        .markdown-body hr {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+            border: none;
+            margin: 2.5em 0;
+        }
+
+
+
+
+
+        /* Pulsante Copia per il Codice */
+        .code-copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .code-copy-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            color: #fff;
+        }
+
+        /* Vista Sorgente Grezza */
+        #rawContent {
+            display: none;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            background-color: #1e293b;
+            color: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 0 0 10px 10px;
+            overflow-x: auto;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 2rem 1rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
+            margin-top: 3rem;
+            background-color: var(--bg-card);
+        }
+
+        /* Stili per la Stampa */
+        @media print {
+            header, .drop-zone, .controls, .view-toggle, .banner, footer {
+                display: none !important;
+            }
+            body {
+                background: white;
+            }
+            main {
+                max-width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            .paper {
+                border: none;
+                box-shadow: none;
+                padding: 0;
+            }
+            .doc-info-bar {
+                border: none;
+                padding: 0 0 1rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="header-container">
+            <div class="brand">
+                <a href="../index.html" class="btn" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;" title="Torna alla Home">
+                    ← Home
+                </a>
+                <div class="brand-icon">M↓</div>
+                <div class="brand-text">
+                    <h1>Visualizzatore Markdown</h1>
+                    <p>Renderizza e analizza i tuoi file .md in locale</p>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="view-toggle">
+                    <button id="btnViewRendered" class="active" onclick="switchView('rendered')">👁️ Anteprima</button>
+                    <button id="btnViewRaw" onclick="switchView('raw')">💻 Sorgente RAW</button>
+                </div>
+
+                <label for="fileInput" class="btn btn-primary">
+                    📂 Sfoglia File
+                </label>
+                <input type="file" id="fileInput" accept=".md,.markdown,.txt,text/plain,text/markdown" onchange="handleFileSelect(event)">
+
+                <button class="btn" onclick="resetToDemo()" title="Ripristina l'esempio di benvenuto">
+                    🔄 Esempio
+                </button>
+
+                <button class="btn" onclick="window.print()" title="Stampa o Salva come PDF">
+                    🖨️ Stampa / PDF
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main>
+
+        <!-- Drag & Drop Zone -->
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+            <span class="drop-zone-icon">📄</span>
+            <div class="drop-zone-title">Trascina qui il tuo file Markdown (.md)</div>
+            <div class="drop-zone-subtitle">oppure clicca qui per selezionarlo dal computer</div>
+        </div>
+
+        <!-- Banner per Avvisi / Errori di formattazione -->
+        <div id="statusBanner" class="banner">
+            <span id="bannerIcon" class="banner-icon">⚠️</span>
+            <div id="bannerContent" class="banner-content"></div>
+        </div>
+
+        <!-- Document Card / Paper Container -->
+        <div class="doc-info-bar">
+            <div class="doc-filename" id="docFileName">
+                <span>📑</span> <span id="fileNameText">Documento di Esempio</span>
+            </div>
+            <div class="doc-stats">
+                <span id="statLines">0 righe</span> • 
+                <span id="statWords">0 parole</span> • 
+                <span id="statSize">0 KB</span>
+            </div>
+        </div>
+
+        <!-- Area Renderizzata -->
+        <div id="renderedContent" class="paper markdown-body">
+            <!-- Il contenuto verrà inserito via JS -->
+        </div>
+
+        <!-- Area Codice Grezzo -->
+        <pre id="rawContent"></pre>
+
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        Visualizzatore Markdown con Sanitizzazione HTML sicura e Gestione Errori.
+    </footer>
+
+    <!-- Logica JavaScript -->
+    <script>
+        // Contenuto Markdown di default (Esempio)
+        const defaultMarkdown = `# 🌊 Guida Turistica: Le Cinque Terre e la Liguria
+
+Benvenuto nel **Visualizzatore Markdown Pro**. Questo documento dimostrativo illustra le funzionalità di renderizzazione e la gestione dei file.
+
+---
+
+## 📍 Destinazioni Principali
+
+### 1. Monterosso al Mare
+- **Zona Fegina**: Spiagge sabbiose e la celebre *Statua del Gigante* (Nettuno).
+- **Borgo Vecchio**:
+  - Case-torri colorate tipiche liguri.
+  - *Chiesa di San Giovanni Battista* con il caratteristico campanile.
+  - Torre Aurora e Santuario dei Frati Cappuccini.
+- **Sentieri**: Percorso panoramico Monterosso-Vernazza (4 km).
+
+### 2. Vernazza ("Il Balcone delle 5 Terre")
+- **Punti di interesse**:
+  - Porticciolo naturale e la piazzetta sul mare.
+  - *Chiesa di Santa Margherita d'Antiochia*.
+  - Castello Doria con vista a 360°.
+
+---
+
+## 📊 Tabella dei Piatti e Prodotti Tipici
+
+| Prodotto / Piatto | Descrizione | Abbinamento Consigliato |
+| :--- | :--- | :--- |
+| **Sciacchetrà** | Vino passito DOC delle Cinque Terre | Formaggi stagionati o dessert |
+| **Focaccia Ligure** | Olio extravergine, croccante ed alveolata | Cappuccino la mattina |
+| **Pesto alla Genovese** | Basilico DOP, pinoli, parmigiano, aglio | Trofie o Trenette |
+| **Acciughe di Monterosso** | Pesce azzurro sotto sale o fritte | Vino bianco Cinque Terre DOC |
+
+---
+
+## 💻 Esempio di Codice (Script di Caricamento)
+
+\`\`\`javascript
+// Funzione per caricare un file Markdown con gestione errori
+function loadMarkdownFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        console.log("File caricato con successo!");
+    };
+    reader.onerror = function() {
+        console.error("Errore nella lettura del file.");
+    };
+    reader.readAsText(file);
+}
+\`\`\`
+
+> 💡 **Nota**: Puoi trascinare qualsiasi file \`.md\` o \`.txt\` direttamente in questa pagina per visualizzarlo istantaneamente!
+`;
+
+        // Stato dell'applicazione
+        let currentMode = 'rendered';
+
+        // Inizializzazione al caricamento della pagina
+        window.addEventListener('DOMContentLoaded', () => {
+            setupDragAndDrop();
+            processMarkdown(defaultMarkdown, "CinqueTerre_Esempio.md");
+        });
+
+        // Configurazione Drag & Drop
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+            });
+
+            dropZone.addEventListener('drop', handleDrop, false);
+        }
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                loadFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                loadFile(files[0]);
+            }
+        }
+
+        // Caricamento e Lettura File
+        function loadFile(file) {
+            if (!file) return;
+
+            // Controllo estensione / tipo file
+            const fileName = file.name;
+            const fileExt = fileName.split('.').pop().toLowerCase();
+            
+            // Messaggio se il file ha un'estensione non convenzionale
+            if (!['md', 'markdown', 'txt', 'text'].includes(fileExt)) {
+                showBanner('warning', `⚠️ Il file <strong>${escapeHtml(fileName)}</strong> ha un'estensione non standard (.${fileExt}). Tenteremo comunque di leggerlo come testo.`);
+            } else {
+                hideBanner();
+            }
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const content = e.target.result;
+                processMarkdown(content, fileName, file.size);
+            };
+
+            reader.onerror = function() {
+                showBanner('error', `❌ <strong>Errore di Lettura:</strong> Impossibile leggere il file "${escapeHtml(fileName)}". Verifica che il file non sia protetto o danneggiato.`);
+            };
+
+            // Leggi come testo UTF-8
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        // Processamento Markdown e Gestione Formattazione Errata
+        function processMarkdown(rawText, fileName = "Documento.md", fileSize = null) {
+            // 1. Controllo File Vuoto
+            if (!rawText || rawText.trim() === "") {
+                showBanner('warning', `⚠️ Il file <strong>${escapeHtml(fileName)}</strong> è completamente vuoto.`);
+                renderOutput("", "", fileName, fileSize || 0);
+                return;
+            }
+
+            // 2. Controllo Caratteri Binari / Non Testuali
+            if (isBinaryContent(rawText)) {
+                showBanner('error', `❌ <strong>Formato Non Supportato:</strong> Il file "${escapeHtml(fileName)}" sembra contenere dati binari o codifica non testuale.`);
+                renderOutput("<p style='color:red;'>Impossibile visualizzare file binari.</p>", rawText, fileName, fileSize || rawText.length);
+                return;
+            }
+
+            // 3. Analisi di sintassi formattata male / irregolare
+            const syntaxIssues = analyzeMarkdownSyntax(rawText);
+
+            // 4. Conversione con Marked.js e Sanitizzazione con DOMPurify
+            let renderedHtml = "";
+            let hasParsingError = false;
+
+            try {
+                // Opzioni di Marked
+                marked.setOptions({
+                    gfm: true,
+                    breaks: true,
+                    headerIds: true,
+                    mangle: false,
+                    highlight: function(code, lang) {
+                        if (lang && hljs.getLanguage(lang)) {
+                            try {
+                                return hljs.highlight(code, { language: lang }).value;
+                            } catch (err) {}
+                        }
+                        return hljs.highlightAuto(code).value;
+                    }
+                });
+
+                // Converte MD -> HTML
+                const rawParsed = marked.parse(rawText);
+
+                // Sanitizza HTML per evitare XSS o layout corrotti da tag non chiusi
+                renderedHtml = DOMPurify.sanitize(rawParsed, {
+                    ADD_ATTR: ['target']
+                });
+
+            } catch (err) {
+                console.error("Errore Marked.js:", err);
+                hasParsingError = true;
+                renderedHtml = `<div style="background:#fef2f2; border:1px solid #fecaca; padding:1rem; border-radius:8px; color:#991b1b;">
+                    <h3>⚠️ Errore di Parsing Markdown</h3>
+                    <p>Si è verificato un errore imprevisto durante l'interpretazione del Markdown. Il file viene mostrato come testo formattato semplice.</p>
+                </div>
+                <pre><code>${escapeHtml(rawText)}</code></pre>`;
+            }
+
+            // 5. Gestione Banner di Stato/Avvisi
+            if (hasParsingError) {
+                showBanner('error', `❌ Errore critico durante la conversione del file "${escapeHtml(fileName)}".`);
+            } else if (syntaxIssues.length > 0) {
+                let issuesList = syntaxIssues.map(issue => `<li>${issue}</li>`).join('');
+                showBanner('warning', `
+                    <strong>Avviso sulla formattazione del file Markdown:</strong>
+                    <br>Il file è stato renderizzato, ma presenta alcune irregolarità nella sintassi:
+                    <ul>${issuesList}</ul>
+                `);
+            } else if (!fileSize && fileName === "CinqueTerre_Esempio.md") {
+                hideBanner();
+            } else {
+                showBanner('success', `✅ File <strong>${escapeHtml(fileName)}</strong> caricato e renderizzato correttamente.`);
+                setTimeout(() => {
+                    const banner = document.getElementById('statusBanner');
+                    if (banner.classList.contains('success')) hideBanner();
+                }, 4000);
+            }
+
+            // 6. Output a Schermo
+            renderOutput(renderedHtml, rawText, fileName, fileSize || new Blob([rawText]).size);
+        }
+
+        // Inserimento dati nel DOM
+        function renderOutput(htmlContent, rawText, fileName, sizeBytes) {
+            document.getElementById('renderedContent').innerHTML = htmlContent;
+            document.getElementById('rawContent').textContent = rawText;
+
+            // Aggiorna statistiche e nome file
+            document.getElementById('fileNameText').textContent = fileName;
+            
+            const lines = rawText ? rawText.split('\n').length : 0;
+            const words = rawText ? rawText.trim().split(/\s+/).filter(w => w.length > 0).length : 0;
+            const sizeKB = (sizeBytes / 1024).toFixed(1);
+
+            document.getElementById('statLines').textContent = `${lines} righe`;
+            document.getElementById('statWords').textContent = `${words} parole`;
+            document.getElementById('statSize').textContent = `${sizeKB} KB`;
+
+            // Aggiungi pulsanti copia su ogni blocco di codice
+            addCodeCopyButtons();
+        }
+
+        // Analizzatore di Sintassi Markdown Malformata
+        function analyzeMarkdownSyntax(text) {
+            const warnings = [];
+
+            // Controlla blocchi codice non chiusi (numero dispari di ```)
+            const codeBlockMatches = text.match(/^```/gm);
+            if (codeBlockMatches && codeBlockMatches.length % 2 !== 0) {
+                warnings.push("Trovato un blocco di codice con triplo apice (```) non chiuso correttamente.");
+            }
+
+            // Controlla intestazioni senza spazio (es. #Titolo invece di # Titolo)
+            if (/^#{1,6}[a-zA-Z0-9àèéìòù]/m.test(text)) {
+                warnings.push("Alcune intestazioni non hanno uno spazio dopo il simbolo '#' (es. <code>#Titolo</code> invece di <code># Titolo</code>).");
+            }
+
+            // Controlla tabelle potenzialmente malformate (righe con pipe non allineate)
+            const lines = text.split('\n');
+            let inTable = false;
+            let tableHeaderPipes = 0;
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.startsWith('|') && line.endsWith('|')) {
+                    const pipeCount = (line.match(/\|/g) || []).length;
+                    if (!inTable) {
+                        inTable = true;
+                        tableHeaderPipes = pipeCount;
+                    } else if (pipeCount !== tableHeaderPipes && !line.includes('---')) {
+                        warnings.push(`Possibile colonna mancante o disallineata nella tabella alla riga ${i + 1}.`);
+                        break;
+                    }
+                } else {
+                    inTable = false;
+                }
+            }
+
+            // Controlla tag HTML non chiusi semplici (es. <div o <span senza >)
+            if (/<[a-zA-Z][^>]*$/m.test(text)) {
+                warnings.push("Trovato un tag HTML incompleto o non chiuso.");
+            }
+
+            return warnings;
+        }
+
+        // Rilevamento file binari
+        function isBinaryContent(text) {
+            // Controlla la presenza di caratteri NULL o alta frequenza di caratteri di controllo non stampabili
+            let nullCount = 0;
+            const sample = text.slice(0, 1000);
+            for (let i = 0; i < sample.length; i++) {
+                const charCode = sample.charCodeAt(i);
+                if (charCode === 0) return true;
+                if (charCode < 9 || (charCode > 13 && charCode < 32)) {
+                    nullCount++;
+                }
+            }
+            return (nullCount / sample.length) > 0.1;
+        }
+
+        // Gestione Banner
+        function showBanner(type, message) {
+            const banner = document.getElementById('statusBanner');
+            const content = document.getElementById('bannerContent');
+            const icon = document.getElementById('bannerIcon');
+
+            banner.className = `banner ${type}`;
+            content.innerHTML = message;
+
+            if (type === 'warning') icon.textContent = '⚠️';
+            else if (type === 'error') icon.textContent = '❌';
+            else if (type === 'success') icon.textContent = '✅';
+
+            banner.style.display = 'flex';
+        }
+
+        function hideBanner() {
+            const banner = document.getElementById('statusBanner');
+            banner.style.display = 'none';
+        }
+
+        // Cambio Vista Anteprima / Raw
+        function switchView(mode) {
+            currentMode = mode;
+            const btnRendered = document.getElementById('btnViewRendered');
+            const btnRaw = document.getElementById('btnViewRaw');
+            const renderedContent = document.getElementById('renderedContent');
+            const rawContent = document.getElementById('rawContent');
+
+            if (mode === 'rendered') {
+                btnRendered.classList.add('active');
+                btnRaw.classList.remove('active');
+                renderedContent.style.display = 'block';
+                rawContent.style.display = 'none';
+            } else {
+                btnRaw.classList.add('active');
+                btnRendered.classList.remove('active');
+                renderedContent.style.display = 'none';
+                rawContent.style.display = 'block';
+            }
+        }
+
+        // Pulsanti Copia nei blocchi di codice
+        function addCodeCopyButtons() {
+            const codeBlocks = document.querySelectorAll('.markdown-body pre');
+            codeBlocks.forEach((pre) => {
+                if (pre.querySelector('.code-copy-btn')) return;
+
+                const btn = document.createElement('button');
+                btn.className = 'code-copy-btn';
+                btn.textContent = 'Copia';
+                
+                btn.addEventListener('click', () => {
+                    const code = pre.querySelector('code')?.innerText || pre.innerText;
+                    navigator.clipboard.writeText(code).then(() => {
+                        btn.textContent = 'Copiato!';
+                        setTimeout(() => btn.textContent = 'Copia', 2000);
+                    }).catch(err => {
+                        console.error('Errore copia:', err);
+                    });
+                });
+
+                pre.appendChild(btn);
+            });
+        }
+
+        // Ripristina l'esempio di benvenuto
+        function resetToDemo() {
+            hideBanner();
+            processMarkdown(defaultMarkdown, "CinqueTerre_Esempio.md");
+            switchView('rendered');
+            document.getElementById('fileInput').value = '';
+        }
+
+        // Funzione Utility Utility per Escape HTML
+        function escapeHtml(str) {
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>

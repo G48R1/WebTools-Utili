@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Tool</title>
+    <!-- Tailwind CSS per lo styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Icone Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6 md:p-12">
+
+    <div class="max-w-6xl mx-auto space-y-8">
+        
+        <!-- Header & Ricerca -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+            <div>
+                <h1 class="text-3xl font-bold tracking-tight text-white">Hub Strumenti</h1>
+                <p class="text-slate-400 text-sm mt-1">Seleziona un tool per iniziare a lavorare</p>
+            </div>
+            
+            <!-- Barra di Ricerca -->
+            <div class="relative w-full md:w-72">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    placeholder="Cerca un tool..." 
+                    class="w-full pl-9 pr-4 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-sm text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                >
+            </div>
+        </header>
+
+        <!-- Container Card Tool -->
+        <main id="toolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Le card verranno generate dinamicamente da JavaScript -->
+        </main>
+
+    </div>
+
+    <script>
+        // ==========================================
+        // CONFIGURAZIONE TOOL (Aggiungi qui i nuovi tool)
+        // ==========================================
+        const tools = [
+            {
+                title: "Image Converter, Cropper & Resizer",
+                description: "Converti, ritaglia, scala e adatta la risoluzione delle tue immagini in tempo reale.",
+                url: "./imgConverter/imgConverter.html",
+                icon: "image-upscale",
+                badge: "Media",
+                color: "indigo"
+            },
+            {
+                title: "MD Visualizer",
+                description: "Visualizza file Markdown in un comodo tool.",
+                url: "./mdVisualizer/mdVisualizer.html",
+                icon: "eye",
+                badge: "Utility",
+                color: "emerald"
+            },
+            {
+                title: "Manipolatore PDF",
+                description: "Unisci e riordina file PDF con pochi click.",
+                url: "./pdfManipulator/pdfManipulator.html",
+                icon: "file-text",
+                badge: "Documenti",
+                color: "amber"
+            },
+
+            /*
+            {
+                title: "Nome del Tool",
+                description: "Breve descrizione di cosa fa questo strumento.",
+                url: "./percorso-tool.html",
+                icon: "settala-da-lucide-icons", // es. 'image', 'code', 'scissors', 'settings'
+                badge: "Categoria",
+                color: "indigo" //Opzioni: "indigo", "emerald", "amber"
+            }
+            */
+        ];
+
+        // Mappa dei colori per i badge
+        const badgeColors = {
+            indigo: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+            emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+            amber: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+            /* newcolor: "" */
+        };
+
+        // ==========================================
+        // ENGINE DI RENDERING
+        // ==========================================
+        function renderTools(filterText = '') {
+            const grid = document.getElementById('toolsGrid');
+            grid.innerHTML = '';
+
+            const filteredTools = tools.filter(tool => 
+                tool.title.toLowerCase().includes(filterText.toLowerCase()) || 
+                tool.description.toLowerCase().includes(filterText.toLowerCase()) ||
+                tool.badge.toLowerCase().includes(filterText.toLowerCase())
+            );
+
+            if (filteredTools.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 text-center text-slate-500">
+                        Nessun tool trovato per "${filterText}"
+                    </div>
+                `;
+                return;
+            }
+
+            filteredTools.forEach(tool => {
+                const badgeStyle = badgeColors[tool.color] || badgeColors.indigo;
+                
+                const card = document.createElement('a');
+                card.href = tool.url;
+                card.className = `
+                    group relative flex flex-col justify-between p-6 bg-slate-800/40 border border-slate-800 
+                    rounded-2xl hover:bg-slate-800/80 hover:border-slate-700 hover:shadow-xl hover:shadow-indigo-500/5 
+                    transition-all duration-200 ease-out hover:-translate-y-1
+                `;
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 bg-slate-800 border border-slate-700/60 rounded-xl group-hover:scale-110 transition-transform">
+                                <i data-lucide="${tool.icon}" class="w-6 h-6 text-indigo-400"></i>
+                            </div>
+                            <span class="text-xs px-2.5 py-1 rounded-full border ${badgeStyle} font-medium">
+                                ${tool.badge}
+                            </span>
+                        </div>
+                        <h2 class="text-lg font-semibold text-slate-100 group-hover:text-white transition-colors mb-2">
+                            ${tool.title}
+                        </h2>
+                        <p class="text-sm text-slate-400 leading-relaxed">
+                            ${tool.description}
+                        </p>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-slate-800/80 flex items-center text-xs font-medium text-indigo-400 group-hover:text-indigo-300">
+                        <span>Apri strumento</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+
+            // Inizializza le icone caricate dinamicamente
+            lucide.createIcons();
+        }
+
+        // Event listener per la ricerca dinamica
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            renderTools(e.target.value);
+        });
+
+        // Primo rendering all'avvio
+        renderTools();
+    </script>
+</body>
+</html>

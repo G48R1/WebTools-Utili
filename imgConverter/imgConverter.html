@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Architect - Professional Converter & Resizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        .drag-over { border-color: #3b82f6 !important; background-color: #eff6ff !important; }
+        .cropper-bg { background-image: repeating-conic-gradient(#f3f4f6 0% 25%, #fff 0% 50%) !important; background-size: 16px 16px !important; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-gray-900 pb-16">
+
+    <div class="max-w-7xl mx-auto p-6">
+        <!-- Header -->
+        <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
+            <div>
+                <a href="../index.html" class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-blue-600 transition-colors mb-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    Torna alla Home
+                </a>
+                <h1 class="text-3xl font-bold tracking-tight text-gray-900">Image Architect</h1>
+                <p class="text-gray-500 text-sm mt-1">Conversione, ridimensionamento e crop interattivo 100% locale sul tuo browser.</p>
+            </div>
+            
+            <!-- Toolbar Azioni / Undo-Redo / Preview / Download -->
+            <div id="actionToolbar" class="hidden flex flex-wrap items-center gap-3">
+                <div class="flex items-center bg-gray-100 rounded-xl p-1 border border-gray-200 mr-2">
+                    <button id="undoBtn" disabled title="Annulla (Ctrl+Z)" class="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                    </button>
+                    <button id="redoBtn" disabled title="Ripristina (Ctrl+Y)" class="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6"/></svg>
+                    </button>
+                </div>
+
+                <button id="clearBtn" class="px-3.5 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-colors flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    Svuota
+                </button>
+
+                <button id="previewBtn" class="bg-gray-800 hover:bg-gray-900 text-white font-medium px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    Anteprima
+                </button>
+
+                <button id="downloadBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Esporta Immagine
+                </button>
+            </div>
+        </header>
+
+        <!-- Dropzone Principale -->
+        <div id="dropzone" class="border-2 border-dashed border-gray-300 rounded-2xl p-10 text-center bg-white shadow-sm transition-all cursor-pointer hover:border-gray-400">
+            <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <p class="text-lg font-semibold text-gray-700">Trascina qui la tua immagine (PNG, JPG, WEBP, SVG, GIF, BMP, ecc.)</p>
+            <p class="text-xs text-gray-400 mt-1">Elaborazione 100% protetta nel browser, nessun caricamento remoto</p>
+            <input type="file" id="fileInput" class="hidden" accept="image/*,.svg">
+        </div>
+
+        <!-- Editor Workspace -->
+        <div id="editorWorkspace" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
+            
+            <!-- Colonna Sinistra: Viewport e Canvas Custom -->
+            <div class="lg:col-span-7 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col items-center justify-center min-h-[460px] relative overflow-hidden select-none">
+                
+                <!-- Viewport con Pan & Zoom Custom Engine -->
+                <div id="canvasViewport" class="w-full h-[500px] cropper-bg rounded-xl overflow-hidden relative cursor-default">
+                    
+                    <!-- Floating Control Badge per Zoom/Reset -->
+                    <div class="absolute top-3 right-3 z-30 bg-white/90 backdrop-blur border border-gray-200 rounded-lg px-2.5 py-1 flex items-center gap-2 shadow-sm text-xs font-semibold text-gray-700">
+                        <span id="zoomLevelText">100%</span>
+                        <button id="resetZoomBtn" title="Ripristina Vista (Centra e Reset Zoom)" class="text-gray-400 hover:text-blue-600 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Stage con Trasformazione Visiva Pure (Offset + Scale) -->
+                    <div id="imageStage" class="absolute top-0 left-0 origin-top-left pointer-events-auto">
+                        <img id="sourceImage" class="block pointer-events-none select-none max-w-none" draggable="false" alt="Sorgente">
+                        
+                        <!-- Riquadro di Selezione (Custom Overlay) -->
+                        <div id="cropBox" class="absolute border-2 border-blue-500 bg-blue-500/10 cursor-move shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]">
+                            <!-- Griglia 3x3 -->
+                            <div class="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none opacity-30">
+                                <div class="border-r border-b border-white"></div>
+                                <div class="border-r border-b border-white"></div>
+                                <div class="border-b border-white"></div>
+                                <div class="border-r border-b border-white"></div>
+                                <div class="border-r border-b border-white"></div>
+                                <div class="border-b border-white"></div>
+                                <div class="border-r border-white"></div>
+                                <div class="border-r border-white"></div>
+                                <div></div>
+                            </div>
+                            <!-- Handles di Ridimensionamento -->
+                            <div data-handle="nw" class="handle absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-blue-600 rounded-full cursor-nwse-resize"></div>
+                            <div data-handle="n"  class="handle absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-blue-600 rounded-full cursor-ns-resize"></div>
+                            <div data-handle="ne" class="handle absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-blue-600 rounded-full cursor-nesw-resize"></div>
+                            <div data-handle="e"  class="handle absolute top-1/2 -right-1.5 -translate-y-1/2 w-3 h-3 bg-white border-2 border-blue-600 rounded-full cursor-ew-resize"></div>
+                            <div data-handle="se" class="handle absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-blue-600 rounded-full cursor-nwse-resize"></div>
+                            <div data-handle="s"  class="handle absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-blue-600 rounded-full cursor-ns-resize"></div>
+                            <div data-handle="sw" class="handle absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-blue-600 rounded-full cursor-nesw-resize"></div>
+                            <div data-handle="w"  class="handle absolute top-1/2 -left-1.5 -translate-y-1/2 w-3 h-3 bg-white border-2 border-blue-600 rounded-full cursor-ew-resize"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-xs text-gray-400 mt-3 text-center">
+                    <strong>Zoom:</strong> Rotella Mouse &nbsp;|&nbsp; <strong>Sposta Vista:</strong> Tasto Destro, Tasto Centrale o Spazio + Trascina
+                </p>
+            </div>
+
+            <!-- Colonna Destra: Controlli -->
+            <div class="lg:col-span-5 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-5">
+                
+                <!-- Notifica Passaggio Intermedio -->
+                <div id="intermediateNotice" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-amber-800">
+                    <svg class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <div>
+                        <span class="font-bold block">Passaggio Intermedio Rilevato</span>
+                        <span id="intermediateNoticeText">Conversione diretta non supportata. Verrà eseguito un ponte Canvas/Vector.</span>
+                    </div>
+                </div>
+
+                <!-- Formato Output -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Formato Destinazione</label>
+                    <select id="targetFormat" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                        <option value="png">PNG (Trasparenza lossless)</option>
+                        <option value="jpeg">JPG / JPEG (Standard compresso)</option>
+                        <option value="webp">WEBP (Web moderno)</option>
+                        <option value="ico">ICO (Favicon icona)</option>
+                        <option value="pdf">PDF (Documento vettoriale/raster)</option>
+                        <option value="svg">SVG (Contenitore Vettoriale)</option>
+                        <option value="bmp">BMP (Bitmap non compresso)</option>
+                    </select>
+                </div>
+
+                <!-- Preset Ridimensionamento -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Preset Dimensioni Predefinite</label>
+                    
+                    <p class="text-[11px] font-semibold text-gray-400 mb-1">Generale</p>
+                    <div class="grid grid-cols-2 gap-1.5 mb-3">
+                        <button data-w="free" data-h="free" class="preset-btn active bg-blue-50 border-blue-500 text-blue-700 border text-xs py-1.5 rounded-lg font-medium transition-all">Libero</button>
+                        <button data-w="original" data-h="original" class="preset-btn bg-gray-50 border-gray-200 text-gray-700 border text-xs py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all">Proporzioni Originali</button>
+                    </div>
+
+                    <p class="text-[11px] font-semibold text-gray-400 mb-1">Quadrati</p>
+                    <div class="grid grid-cols-4 gap-1.5 mb-3">
+                        <button data-w="16" data-h="16" class="preset-btn bg-gray-50 border-gray-200 text-gray-700 border text-xs py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all">16 x 16</button>
+                        <button data-w="32" data-h="32" class="preset-btn bg-gray-50 border-gray-200 text-gray-700 border text-xs py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all">32 x 32</button>
+                        <button data-w="64" data-h="64" class="preset-btn bg-gray-50 border-gray-200 text-gray-700 border text-xs py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all">64 x 64</button>
+                        <button data-w="128" data-h="128" class="preset-btn bg-gray-50 border-gray-200 text-gray-700 border text-xs py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all">128 x 128</button>
+                        <button data-w="256" data-h="256" class="preset-btn bg-gray-50 border-gray-200 text-gray-700 border text-xs py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all">256 x 256</button>
+                        <button data-w="512" data-h="512" class="preset-btn bg-gray-50 border-gray-200 text-gray-700 border text-xs py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all">512 x 512</button>
+                        <button data-w="1024" data-h="1024" class="preset-btn bg-gray-50 border-gray-200 text-gray-700 border text-xs py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all">1024 x 1024</button>
+                    </div>
+
+                    <p class="text-[11px] font-semibold text-gray-400 mb-1">Rettangolari / Social</p>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button data-w="1920" data-h="1080" class="preset-btn bg-gray-50 border-gray-200 text-gray-700 border text-xs py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all">1920x1080 (16:9)</button>
+                        <button data-w="1280" data-h="720" class="preset-btn bg-gray-50 border-gray-200 text-gray-700 border text-xs py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all">1280x720 (16:9)</button>
+                        <button data-w="1080" data-h="1920" class="preset-btn bg-gray-50 border-gray-200 text-gray-700 border text-xs py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all">1080x1920 (9:16)</button>
+                        <button data-w="1080" data-h="1350" class="preset-btn bg-gray-50 border-gray-200 text-gray-700 border text-xs py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all">1080x1350 (4:5)</button>
+                        <button data-w="1200" data-h="630" class="preset-btn bg-gray-50 border-gray-200 text-gray-700 border text-xs py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all col-span-2">1200x630 (1.91:1 Banner)</button>
+                    </div>
+                </div>
+
+                <!-- Dimensioni Personalizzate -->
+                <div class="border-t border-gray-100 pt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Dimensioni Output Finale (px)</label>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <span class="text-xs text-gray-400 block mb-1">Larghezza</span>
+                            <input type="number" id="widthInput" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <span class="text-xs text-gray-400 block mb-1">Altezza</span>
+                            <input type="number" id="heightInput" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risoluzione Pixel Effettiva (Downsampling / Quality) -->
+                <div class="border-t border-gray-100 pt-4 flex flex-col gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Qualità Effettiva (Downsampling Griglia Pixel)</label>
+                        <p class="text-[11px] text-gray-400 mb-2">Mantieni le proporzioni dell'area ritagliata riducendo la griglia reale di pixel.</p>
+                        
+                        <select id="pixelResolutionSelect" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                            <option value="original">Nativa (100% dettaglio dal ritaglio)</option>
+                            <option value="1024">1024 px (Lato maggiore)</option>
+                            <option value="512">512 px (Lato maggiore)</option>
+                            <option value="256">256 px (Lato maggiore)</option>
+                            <option value="128">128 px (Lato maggiore)</option>
+                            <option value="64">64 px (Lato maggiore)</option>
+                            <option value="32">32 px (Pixel Art)</option>
+                            <option value="16">16 px (Low-Res)</option>
+                            <option value="custom">Personalizzata (Larghezza Custom)</option>
+                        </select>
+
+                        <!-- Input Qualità Custom -->
+                        <div id="customQualityContainer" class="hidden mt-2 p-2.5 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-2">
+                            <div class="flex-1">
+                                <span class="text-[11px] text-gray-400 block">Larghezza Pixel</span>
+                                <input type="number" id="customQualityWidth" placeholder="es. 80" class="w-full border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="flex-1">
+                                <span class="text-[11px] text-gray-400 block">Altezza Calcolata</span>
+                                <span id="customQualityHeightCalc" class="text-xs font-semibold text-gray-600 block py-1">-- px</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between border-t border-gray-100 pt-3">
+                        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Sfondo Trasparenza</span>
+                        <input type="color" id="bgColorPicker" value="#ffffff" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Anteprima -->
+    <div id="previewModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex flex-col p-4 md:p-8">
+        <div class="bg-white rounded-2xl flex-1 flex flex-col overflow-hidden max-w-4xl w-full mx-auto shadow-2xl">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    Anteprima Output Convertito
+                </h3>
+                <button id="closePreviewBtn" class="text-gray-400 hover:text-gray-800 p-1.5 rounded-lg text-xl font-bold transition-colors">&times;</button>
+            </div>
+            <div class="flex-1 bg-gray-100 p-6 flex items-center justify-center overflow-auto cropper-bg">
+                <img id="previewImg" class="max-w-full max-h-full object-contain rounded shadow-md" alt="Anteprima">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. STATE MANAGER CON UNDO / REDO
+        const StateManager = {
+            sourceFile: null,
+            sourceType: '',
+            naturalWidth: 0,
+            naturalHeight: 0,
+            
+            // Coordinate del riquadro nello spazio pixel REALE dell'immagine
+            crop: { x: 0, y: 0, w: 0, h: 0 },
+            aspectRatio: null, // null = libero, altrimenti numero float (w/h)
+            
+            // Trasformazione del Viewport (Pan & Zoom)
+            transform: { scale: 1, offsetX: 0, offsetY: 0 },
+
+            historyStack: [],
+            redoStack: [],
+            isInternalChange: false,
+
+            clampCropToBounds() {
+                this.crop.w = Math.max(10, Math.min(this.crop.w, this.naturalWidth));
+                this.crop.h = Math.max(10, Math.min(this.crop.h, this.naturalHeight));
+                this.crop.x = Math.max(0, Math.min(this.crop.x, this.naturalWidth - this.crop.w));
+                this.crop.y = Math.max(0, Math.min(this.crop.y, this.naturalHeight - this.crop.h));
+            },
+
+            getStateSnapshot() {
+                if (!this.naturalWidth) return null;
+                const activeBtn = document.querySelector('.preset-btn.active');
+                return {
+                    targetFormat: document.getElementById('targetFormat').value,
+                    presetW: activeBtn ? activeBtn.dataset.w : 'free',
+                    presetH: activeBtn ? activeBtn.dataset.h : 'free',
+                    width: document.getElementById('widthInput').value,
+                    height: document.getElementById('heightInput').value,
+                    pixelRes: document.getElementById('pixelResolutionSelect').value,
+                    customQualityWidth: document.getElementById('customQualityWidth').value,
+                    bgColor: document.getElementById('bgColorPicker').value,
+                    aspectRatio: this.aspectRatio,
+                    crop: { ...this.crop }
+                };
+            },
+
+            saveState() {
+                if (this.isInternalChange) return;
+                const snap = this.getStateSnapshot();
+                if (snap) {
+                    this.historyStack.push(snap);
+                    if (this.historyStack.length > 25) this.historyStack.shift();
+                    this.redoStack = [];
+                    this.updateUndoRedoUI();
+                }
+            },
+
+            applyState(snap) {
+                if (!snap) return;
+                this.isInternalChange = true;
+
+                document.getElementById('targetFormat').value = snap.targetFormat;
+                document.getElementById('widthInput').value = snap.width;
+                document.getElementById('heightInput').value = snap.height;
+                document.getElementById('pixelResolutionSelect').value = snap.pixelRes;
+                document.getElementById('customQualityWidth').value = snap.customQualityWidth || '';
+                document.getElementById('bgColorPicker').value = snap.bgColor;
+
+                this.aspectRatio = snap.aspectRatio;
+                this.crop = { ...snap.crop };
+
+                UI.toggleCustomQualityUI();
+                UI.setPresetActive(snap.presetW, snap.presetH);
+                ViewportEngine.render();
+                ConverterEngine.checkIntermediateSteps();
+
+                this.isInternalChange = false;
+                this.updateUndoRedoUI();
+            },
+
+            undo() {
+                if (this.historyStack.length === 0) return;
+                const current = this.getStateSnapshot();
+                if (current) this.redoStack.push(current);
+                this.applyState(this.historyStack.pop());
+            },
+
+            redo() {
+                if (this.redoStack.length === 0) return;
+                const current = this.getStateSnapshot();
+                if (current) this.historyStack.push(current);
+                this.applyState(this.redoStack.pop());
+            },
+
+            updateUndoRedoUI() {
+                document.getElementById('undoBtn').disabled = this.historyStack.length === 0;
+                document.getElementById('redoBtn').disabled = this.redoStack.length === 0;
+            }
+        };
+
+        // 2. VIEWPORT & OVERLAY ENGINE (CUSTOM PAN/ZOOM & SELECTION)
+        const ViewportEngine = {
+            viewportEl: null,
+            stageEl: null,
+            sourceImgEl: null,
+            cropBoxEl: null,
+
+            isPanning: false,
+            isDraggingCrop: false,
+            isResizingCrop: false,
+            isDrawingNewCrop: false,
+
+            dragStart: { x: 0, y: 0 },
+            cropStart: { x: 0, y: 0, w: 0, h: 0 },
+            activeHandle: null,
+            isSpacePressed: false,
+
+            init() {
+                this.viewportEl = document.getElementById('canvasViewport');
+                this.stageEl = document.getElementById('imageStage');
+                this.sourceImgEl = document.getElementById('sourceImage');
+                this.cropBoxEl = document.getElementById('cropBox');
+
+                this.viewportEl.addEventListener('contextmenu', (e) => e.preventDefault());
+
+                // Gestione Tasto Spazio per Pan
+                window.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+                        this.isSpacePressed = true;
+                        this.viewportEl.style.cursor = 'grab';
+                    }
+                });
+
+                window.addEventListener('keyup', (e) => {
+                    if (e.code === 'Space') {
+                        this.isSpacePressed = false;
+                        if (!this.isPanning) this.viewportEl.style.cursor = 'default';
+                    }
+                });
+
+                // Zoom con Rotella del Mouse
+                this.viewportEl.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+                    this.zoomAtCursor(e.clientX, e.clientY, zoomFactor);
+                }, { passive: false });
+
+                // Gestione Mouse Down (Pan / Move Crop / Resize Crop / Draw Crop)
+                this.viewportEl.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+                window.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                window.addEventListener('mouseup', () => this.handleMouseUp());
+
+                document.getElementById('resetZoomBtn').addEventListener('click', () => this.resetView());
+            },
+
+            fitToScreen() {
+                const vpRect = this.viewportEl.getBoundingClientRect();
+                const nw = StateManager.naturalWidth;
+                const nh = StateManager.naturalHeight;
+
+                const padding = 32;
+                const availW = vpRect.width - padding * 2;
+                const availH = vpRect.height - padding * 2;
+
+                const scale = Math.min(availW / nw, availH / nh, 1);
+                const offsetX = (vpRect.width - nw * scale) / 2;
+                const offsetY = (vpRect.height - nh * scale) / 2;
+
+                StateManager.transform = { scale, offsetX, offsetY };
+
+                // Crop Iniziale al centramento (80% dell'immagine)
+                StateManager.crop = {
+                    x: Math.round(nw * 0.1),
+                    y: Math.round(nh * 0.1),
+                    w: Math.round(nw * 0.8),
+                    h: Math.round(nh * 0.8)
+                };
+
+                this.render();
+            },
+
+            resetView() {
+                this.fitToScreen();
+            },
+
+            zoomAtCursor(clientX, clientY, factor) {
+                const vpRect = this.viewportEl.getBoundingClientRect();
+                const mouseX = clientX - vpRect.left;
+                const mouseY = clientY - vpRect.top;
+
+                const { scale, offsetX, offsetY } = StateManager.transform;
+                const newScale = Math.min(Math.max(scale * factor, 0.05), 50);
+
+                // Mantiene il punto sotto il cursore fisso durante lo zoom
+                const imgX = (mouseX - offsetX) / scale;
+                const imgY = (mouseY - offsetY) / scale;
+
+                StateManager.transform.scale = newScale;
+                StateManager.transform.offsetX = mouseX - imgX * newScale;
+                StateManager.transform.offsetY = mouseY - imgY * newScale;
+
+                this.render();
+            },
+
+            screenToImageCoords(clientX, clientY) {
+                const vpRect = this.viewportEl.getBoundingClientRect();
+                const vpX = clientX - vpRect.left;
+                const vpY = clientY - vpRect.top;
+                const { scale, offsetX, offsetY } = StateManager.transform;
+
+                return {
+                    x: (vpX - offsetX) / scale,
+                    y: (vpY - offsetY) / scale
+                };
+            },
+
+            handleMouseDown(e) {
+                const isPanBtn = e.button === 2 || e.button === 1 || (e.button === 0 && this.isSpacePressed);
+
+                if (isPanBtn) {
+                    e.preventDefault();
+                    this.isPanning = true;
+                    this.dragStart = { x: e.clientX, y: e.clientY };
+                    this.viewportEl.style.cursor = 'grabbing';
+                    return;
+                }
+
+                if (e.button !== 0) return;
+
+                const target = e.target;
+                const imgPos = this.screenToImageCoords(e.clientX, e.clientY);
+
+                if (target.classList.contains('handle')) {
+                    // Inizio Resize da Handle
+                    e.stopPropagation();
+                    this.isResizingCrop = true;
+                    this.activeHandle = target.dataset.handle;
+                    this.dragStart = { x: imgPos.x, y: imgPos.y };
+                    this.cropStart = { ...StateManager.crop };
+                } else if (target === this.cropBoxEl || this.cropBoxEl.contains(target)) {
+                    // Inizio Spostamento Riquadro
+                    e.stopPropagation();
+                    this.isDraggingCrop = true;
+                    this.dragStart = { x: imgPos.x, y: imgPos.y };
+                    this.cropStart = { ...StateManager.crop };
+                } else {
+                    // Disegna Nuovo Riquadro
+                    this.isDrawingNewCrop = true;
+                    this.dragStart = { x: imgPos.x, y: imgPos.y };
+                    
+                    // Se non siamo in preset 'free', passa automaticamente a Libero quando disegni da zero
+                    const activeBtn = document.querySelector('.preset-btn.active');
+                    if (activeBtn && activeBtn.dataset.w !== 'free') {
+                        StateManager.aspectRatio = null;
+                        UI.setPresetActive('free', 'free');
+                    }
+
+                    StateManager.crop = { x: imgPos.x, y: imgPos.y, w: 1, h: 1 };
+                    this.render();
+                }
+            },
+
+            handleMouseMove(e) {
+                if (this.isPanning) {
+                    const dx = e.clientX - this.dragStart.x;
+                    const dy = e.clientY - this.dragStart.y;
+                    this.dragStart = { x: e.clientX, y: e.clientY };
+
+                    StateManager.transform.offsetX += dx;
+                    StateManager.transform.offsetY += dy;
+                    this.render();
+                    return;
+                }
+
+                const imgPos = this.screenToImageCoords(e.clientX, e.clientY);
+
+                if (this.isDraggingCrop) {
+                    const dx = imgPos.x - this.dragStart.x;
+                    const dy = imgPos.y - this.dragStart.y;
+
+                    StateManager.crop.x = this.cropStart.x + dx;
+                    StateManager.crop.y = this.cropStart.y + dy;
+                    StateManager.clampCropToBounds();
+                    this.render();
+                    this.notifyCropChange();
+                } else if (this.isResizingCrop) {
+                    this.resizeCrop(imgPos);
+                    StateManager.clampCropToBounds();
+                    this.render();
+                    this.notifyCropChange();
+                } else if (this.isDrawingNewCrop) {
+                    const x1 = Math.min(this.dragStart.x, imgPos.x);
+                    const y1 = Math.min(this.dragStart.y, imgPos.y);
+                    const x2 = Math.max(this.dragStart.x, imgPos.x);
+                    const y2 = Math.max(this.dragStart.y, imgPos.y);
+
+                    StateManager.crop = {
+                        x: x1,
+                        y: y1,
+                        w: Math.max(10, x2 - x1),
+                        h: Math.max(10, y2 - y1)
+                    };
+                    StateManager.clampCropToBounds();
+                    this.render();
+                    this.notifyCropChange();
+                }
+            },
+
+            resizeCrop(imgPos) {
+                const { x, y, w, h } = this.cropStart;
+                let dx = imgPos.x - this.dragStart.x;
+                let dy = imgPos.y - this.dragStart.y;
+
+                let newX = x, newY = y, newW = w, newH = h;
+                const ratio = StateManager.aspectRatio;
+
+                if (ratio) {
+                    // Se c'è un aspect ratio attivo, calcola il ridimensionamento mantenendo il rapporto
+                    switch (this.activeHandle) {
+                        case 'se':
+                        case 'e':
+                        case 's':
+                            newW = Math.max(10, w + dx);
+                            newH = newW / ratio;
+                            break;
+                        case 'sw':
+                        case 'w':
+                            newW = Math.max(10, w - dx);
+                            newH = newW / ratio;
+                            newX = x + (w - newW);
+                            break;
+                        case 'ne':
+                        case 'n':
+                            newW = Math.max(10, w + dx);
+                            newH = newW / ratio;
+                            newY = y + (h - newH);
+                            break;
+                        case 'nw':
+                            newW = Math.max(10, w - dx);
+                            newH = newW / ratio;
+                            newX = x + (w - newW);
+                            newY = y + (h - newH);
+                            break;
+                    }
+                } else {
+                    // Ridimensionamento libero
+                    switch (this.activeHandle) {
+                        case 'se': newW = w + dx; newH = h + dy; break;
+                        case 'sw': newW = w - dx; newX = x + dx; newH = h + dy; break;
+                        case 'ne': newW = w + dx; newH = h - dy; newY = y + dy; break;
+                        case 'nw': newW = w - dx; newX = x + dx; newH = h - dy; newY = y + dy; break;
+                        case 'e':  newW = w + dx; break;
+                        case 'w':  newW = w - dx; newX = x + dx; break;
+                        case 's':  newH = h + dy; break;
+                        case 'n':  newH = h - dy; newY = y + dy; break;
+                    }
+                }
+
+                if (newW >= 10 && newH >= 10) {
+                    StateManager.crop = { x: newX, y: newY, w: newW, h: newH };
+                }
+            },
+
+            handleMouseUp() {
+                if (this.isPanning) {
+                    this.isPanning = false;
+                    this.viewportEl.style.cursor = this.isSpacePressed ? 'grab' : 'default';
+                }
+
+                if (this.isDraggingCrop || this.isResizingCrop || this.isDrawingNewCrop) {
+                    this.isDraggingCrop = false;
+                    this.isResizingCrop = false;
+                    this.isDrawingNewCrop = false;
+                    StateManager.saveState();
+                }
+            },
+
+            notifyCropChange() {
+                const activeBtn = document.querySelector('.preset-btn.active');
+                const presetType = activeBtn ? activeBtn.dataset.w : 'free';
+                
+                // Aggiorna sempre i campi larghezza/altezza quando il riquadro cambia in modalità libera o originale
+                if (presetType === 'free' || presetType === 'original') {
+                    document.getElementById('widthInput').value = Math.round(StateManager.crop.w);
+                    document.getElementById('heightInput').value = Math.round(StateManager.crop.h);
+                }
+                
+                UI.updateCustomQualityCalc();
+            },
+
+            render() {
+                const { scale, offsetX, offsetY } = StateManager.transform;
+                const { x, y, w, h } = StateManager.crop;
+
+                // Trasformazione Visiva Pure dello Stage (Nessun vincolo col riquadro)
+                this.stageEl.style.width = `${StateManager.naturalWidth}px`;
+                this.stageEl.style.height = `${StateManager.naturalHeight}px`;
+                this.stageEl.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+
+                // Posizionamento del Riquadro in coordinate reali dell'immagine
+                this.cropBoxEl.style.left = `${x}px`;
+                this.cropBoxEl.style.top = `${y}px`;
+                this.cropBoxEl.style.width = `${w}px`;
+                this.cropBoxEl.style.height = `${h}px`;
+
+                document.getElementById('zoomLevelText').innerText = `${Math.round(scale * 100)}%`;
+            }
+        };
+
+        // 3. CONVERTER ENGINE
+        const ConverterEngine = {
+            checkIntermediateSteps() {
+                const srcType = StateManager.sourceType;
+                const targetFmt = document.getElementById('targetFormat').value;
+                const noticeBox = document.getElementById('intermediateNotice');
+                const noticeText = document.getElementById('intermediateNoticeText');
+
+                let isIntermediate = false;
+                let text = '';
+
+                if (srcType.includes('svg') && targetFmt !== 'svg') {
+                    isIntermediate = true;
+                    text = 'Conversione Vettoriale → Raster: rendering dell\'SVG sorgente su Canvas 2D prima dell\'encodifica finale.';
+                } else if (!srcType.includes('svg') && targetFmt === 'svg') {
+                    isIntermediate = true;
+                    text = 'Conversione Raster → Vettoriale: l\'immagine verrà incapsulata come elemento DataURL bitmap in un contenitore SVG.';
+                } else if (targetFmt === 'pdf') {
+                    isIntermediate = true;
+                    text = 'Rendering su Canvas → Incapsulamento pagina documento jsPDF.';
+                } else if (targetFmt === 'ico') {
+                    isIntermediate = true;
+                    text = 'Ridimensionamento MipMap Canvas → Encodifica formato Favicon / ICO.';
+                }
+
+                if (isIntermediate) {
+                    noticeText.innerText = text;
+                    noticeBox.classList.remove('hidden');
+                } else {
+                    noticeBox.classList.add('hidden');
+                }
+            },
+
+            async generateCanvas() {
+                if (!StateManager.naturalWidth) return null;
+
+                const crop = StateManager.crop;
+                const targetWidth = Math.max(1, parseInt(document.getElementById('widthInput').value, 10) || 512);
+                const targetHeight = Math.max(1, parseInt(document.getElementById('heightInput').value, 10) || 512);
+                const pixelResVal = document.getElementById('pixelResolutionSelect').value;
+                const bgColor = document.getElementById('bgColorPicker').value;
+
+                // 1. Ritaglio dall'immagine originale in coordinate reali
+                const croppedCanvas = document.createElement('canvas');
+                croppedCanvas.width = Math.round(crop.w);
+                croppedCanvas.height = Math.round(crop.h);
+                const cropCtx = croppedCanvas.getContext('2d');
+                
+                cropCtx.imageSmoothingEnabled = true;
+                cropCtx.imageSmoothingQuality = 'high';
+                cropCtx.drawImage(
+                    ViewportEngine.sourceImgEl,
+                    crop.x, crop.y, crop.w, crop.h,
+                    0, 0, croppedCanvas.width, croppedCanvas.height
+                );
+
+                let sourceForFinal = croppedCanvas;
+                const cropAspect = croppedCanvas.width / croppedCanvas.height;
+
+                // 2. Calcolo Downsampling / Qualità Pixellata
+                if (pixelResVal !== 'original') {
+                    let downW = croppedCanvas.width;
+                    let downH = croppedCanvas.height;
+
+                    if (pixelResVal === 'custom') {
+                        const customW = parseInt(document.getElementById('customQualityWidth').value, 10);
+                        if (customW && customW > 0) {
+                            downW = Math.min(customW, croppedCanvas.width);
+                            downH = Math.round(downW / cropAspect);
+                        }
+                    } else {
+                        const targetMaxSide = parseInt(pixelResVal, 10);
+                        if (targetMaxSide > 0) {
+                            const currentMaxSide = Math.max(croppedCanvas.width, croppedCanvas.height);
+                            const effectiveMaxSide = Math.min(targetMaxSide, currentMaxSide);
+
+                            if (croppedCanvas.width >= croppedCanvas.height) {
+                                downW = effectiveMaxSide;
+                                downH = Math.round(effectiveMaxSide / cropAspect);
+                            } else {
+                                downH = effectiveMaxSide;
+                                downW = Math.round(effectiveMaxSide * cropAspect);
+                            }
+                        }
+                    }
+
+                    downW = Math.max(1, downW);
+                    downH = Math.max(1, downH);
+
+                    const smallCanvas = document.createElement('canvas');
+                    smallCanvas.width = downW;
+                    smallCanvas.height = downH;
+                    const smallCtx = smallCanvas.getContext('2d');
+                    smallCtx.imageSmoothingEnabled = true;
+                    smallCtx.imageSmoothingQuality = 'medium';
+                    smallCtx.drawImage(croppedCanvas, 0, 0, downW, downH);
+
+                    sourceForFinal = smallCanvas;
+                }
+
+                // 3. Canvas Finale di Output
+                const finalCanvas = document.createElement('canvas');
+                finalCanvas.width = targetWidth;
+                finalCanvas.height = targetHeight;
+                const ctx = finalCanvas.getContext('2d');
+
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+
+                if (pixelResVal !== 'original') {
+                    ctx.imageSmoothingEnabled = false;
+                } else {
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                }
+
+                ctx.drawImage(sourceForFinal, 0, 0, finalCanvas.width, finalCanvas.height);
+                return finalCanvas;
+            },
+
+            async exportDataUrl() {
+                const canvas = await this.generateCanvas();
+                if (!canvas) return null;
+
+                const format = document.getElementById('targetFormat').value;
+
+                if (format === 'png') return canvas.toDataURL('image/png');
+                if (format === 'jpeg') return canvas.toDataURL('image/jpeg', 0.92);
+                if (format === 'webp') return canvas.toDataURL('image/webp', 0.92);
+                if (format === 'bmp') return canvas.toDataURL('image/bmp');
+                if (format === 'ico') return canvas.toDataURL('image/png');
+                
+                if (format === 'svg') {
+                    const pngData = canvas.toDataURL('image/png');
+                    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}">
+                        <image href="${pngData}" width="${canvas.width}" height="${canvas.height}"/>
+                    </svg>`;
+                    return 'data:image/svg+xml;base64,' + btoa(svgString);
+                }
+
+                if (format === 'pdf') {
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF({
+                        orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+                        unit: 'px',
+                        format: [canvas.width, canvas.height]
+                    });
+                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
+                    return pdf.output('datauristring');
+                }
+
+                return canvas.toDataURL('image/png');
+            }
+        };
+
+        // 4. UI CONTROLLER & EVENT HANDLERS
+        const UI = {
+            init() {
+                ViewportEngine.init();
+
+                const dropzone = document.getElementById('dropzone');
+                const fileInput = document.getElementById('fileInput');
+
+                dropzone.addEventListener('click', () => fileInput.click());
+                dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+                dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+                dropzone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropzone.classList.remove('drag-over');
+                    if (e.dataTransfer.files.length) this.loadFile(e.dataTransfer.files[0]);
+                });
+
+                fileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length) this.loadFile(e.target.files[0]);
+                });
+
+                document.getElementById('targetFormat').addEventListener('change', () => {
+                    StateManager.saveState();
+                    ConverterEngine.checkIntermediateSteps();
+                });
+
+                document.getElementById('pixelResolutionSelect').addEventListener('change', () => {
+                    this.toggleCustomQualityUI();
+                    this.updateCustomQualityCalc();
+                    StateManager.saveState();
+                });
+
+                document.getElementById('customQualityWidth').addEventListener('input', () => {
+                    this.updateCustomQualityCalc();
+                    StateManager.saveState();
+                });
+
+                document.getElementById('bgColorPicker').addEventListener('change', () => StateManager.saveState());
+
+                // Input Dimensioni Manuali
+                document.getElementById('widthInput').addEventListener('input', () => this.handleCustomDimensions());
+                document.getElementById('heightInput').addEventListener('input', () => this.handleCustomDimensions());
+
+                // Preset Buttons
+                document.querySelectorAll('.preset-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.applyPreset(btn.dataset.w, btn.dataset.h);
+                    });
+                });
+
+                // Toolbar Actions
+                document.getElementById('clearBtn').addEventListener('click', () => this.reset());
+                document.getElementById('undoBtn').addEventListener('click', () => StateManager.undo());
+                document.getElementById('redoBtn').addEventListener('click', () => StateManager.redo());
+
+                // Keybindings
+                document.addEventListener('keydown', (e) => {
+                    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+                    const isCtrlCmd = e.ctrlKey || e.metaKey;
+                    if (isCtrlCmd && e.key.toLowerCase() === 'z') {
+                        e.preventDefault();
+                        if (e.shiftKey) StateManager.redo();
+                        else StateManager.undo();
+                    } else if (isCtrlCmd && e.key.toLowerCase() === 'y') {
+                        e.preventDefault();
+                        StateManager.redo();
+                    }
+                });
+
+                // Preview & Download
+                document.getElementById('previewBtn').addEventListener('click', async () => {
+                    const dataUrl = await ConverterEngine.exportDataUrl();
+                    if (dataUrl) {
+                        document.getElementById('previewImg').src = dataUrl;
+                        document.getElementById('previewModal').classList.remove('hidden');
+                    }
+                });
+
+                document.getElementById('closePreviewBtn').addEventListener('click', () => {
+                    document.getElementById('previewModal').classList.add('hidden');
+                });
+
+                document.getElementById('downloadBtn').addEventListener('click', async () => {
+                    const dataUrl = await ConverterEngine.exportDataUrl();
+                    if (!dataUrl) return;
+
+                    const format = document.getElementById('targetFormat').value;
+                    const link = document.createElement('a');
+                    link.href = dataUrl;
+                    link.download = `immagine_convertita.${format === 'jpeg' ? 'jpg' : format}`;
+                    link.click();
+                });
+            },
+
+            updateQualityOptions() {
+                if (!StateManager.crop || !StateManager.crop.w) return;
+
+                // Calcola il lato maggiore dell'area attualmente ritagliata
+                const maxCropSide = Math.max(StateManager.crop.w, StateManager.crop.h);
+                const select = document.getElementById('pixelResolutionSelect');
+
+                Array.from(select.options).forEach(opt => {
+                    // Le opzioni 'original' e 'custom' rimangono sempre attive
+                    if (opt.value === 'original' || opt.value === 'custom') {
+                        opt.disabled = false;
+                        return;
+                    }
+
+                    const targetSide = parseInt(opt.value, 10);
+
+                    // Disabilita l'opzione se la risoluzione richiesta supera la dimensione reale del ritaglio
+                    if (targetSide > maxCropSide) {
+                        opt.disabled = true;
+                    } else {
+                        opt.disabled = false;
+                    }
+                });
+
+                // Se l'opzione attualmente selezionata diventa disabilitata, ripristina 'original'
+                if (select.selectedOptions[0] && select.selectedOptions[0].disabled) {
+                    select.value = 'original';
+                    this.toggleCustomQualityUI();
+                }
+            },
+
+            toggleCustomQualityUI() {
+                const val = document.getElementById('pixelResolutionSelect').value;
+                const container = document.getElementById('customQualityContainer');
+                container.classList.toggle('hidden', val !== 'custom');
+            },
+
+            updateCustomQualityCalc() {
+                if (!StateManager.naturalWidth) return;
+
+                // Aggiorna le opzioni di qualità abilitate/disabilitate nel menu
+                this.updateQualityOptions();
+
+                const inputEl = document.getElementById('customQualityWidth');
+                let customW = parseInt(inputEl.value, 10);
+                const calcSpan = document.getElementById('customQualityHeightCalc');
+                
+                if (customW && customW > 0) {
+                    const maxW = Math.round(StateManager.crop.w);
+
+                    // Clamp del valore custom se supera la larghezza reale del ritaglio attuale
+                    if (customW > maxW) {
+                        customW = maxW;
+                        inputEl.value = maxW;
+                    }
+
+                    const ratio = StateManager.crop.w / (StateManager.crop.h || 1);
+                    const calcH = Math.round(customW / ratio);
+                    calcSpan.innerText = `x ${calcH} px`;
+                } else {
+                    calcSpan.innerText = '-- px';
+                }
+            },
+
+            loadFile(file) {
+                StateManager.sourceFile = file;
+                StateManager.sourceType = file.type || file.name.split('.').pop();
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = ViewportEngine.sourceImgEl;
+                    img.onload = () => {
+                        StateManager.naturalWidth = img.naturalWidth;
+                        StateManager.naturalHeight = img.naturalHeight;
+
+                        document.getElementById('dropzone').classList.add('hidden');
+                        document.getElementById('editorWorkspace').classList.remove('hidden');
+                        document.getElementById('actionToolbar').classList.remove('hidden');
+
+                        this.updatePresetButtons();
+
+                        ViewportEngine.fitToScreen();
+                        
+                        document.getElementById('widthInput').value = Math.round(StateManager.crop.w);
+                        document.getElementById('heightInput').value = Math.round(StateManager.crop.h);
+                        
+                        this.updateCustomQualityCalc();
+                        ConverterEngine.checkIntermediateSteps();
+                        StateManager.saveState();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            },
+
+            setPresetActive(wStr, hStr) {
+                document.querySelectorAll('.preset-btn').forEach(b => {
+                    const isActive = b.dataset.w === wStr && b.dataset.h === hStr;
+                    b.classList.toggle('active', isActive);
+                    b.classList.toggle('bg-blue-50', isActive);
+                    b.classList.toggle('border-blue-500', isActive);
+                    b.classList.toggle('text-blue-700', isActive);
+                    b.classList.toggle('bg-gray-50', !isActive);
+                    b.classList.toggle('border-gray-200', !isActive);
+                    b.classList.toggle('text-gray-700', !isActive);
+                });
+            },
+
+            applyPreset(wStr, hStr) {
+                if (!StateManager.naturalWidth) return;
+                StateManager.saveState();
+
+                this.setPresetActive(wStr, hStr);
+
+                if (wStr === 'free') {
+                    StateManager.aspectRatio = null;
+                    document.getElementById('widthInput').value = Math.round(StateManager.crop.w);
+                    document.getElementById('heightInput').value = Math.round(StateManager.crop.h);
+                } else if (wStr === 'original') {
+                    StateManager.aspectRatio = StateManager.naturalWidth / StateManager.naturalHeight;
+                    StateManager.crop = {
+                        x: 0,
+                        y: 0,
+                        w: StateManager.naturalWidth,
+                        h: StateManager.naturalHeight
+                    };
+                    document.getElementById('widthInput').value = StateManager.naturalWidth;
+                    document.getElementById('heightInput').value = StateManager.naturalHeight;
+                } else {
+                    const targetW = parseInt(wStr, 10);
+                    const targetH = parseInt(hStr, 10);
+
+                    StateManager.aspectRatio = targetW / targetH;
+
+                    // Adatta le dimensioni se il preset supera l'immagine originale
+                    let newW = targetW;
+                    let newH = targetH;
+                    if (newW > StateManager.naturalWidth || newH > StateManager.naturalHeight) {
+                        const scale = Math.min(StateManager.naturalWidth / newW, StateManager.naturalHeight / newH);
+                        newW = Math.round(newW * scale);
+                        newH = Math.round(newH * scale);
+                    }
+
+                    // Calcola la posizione per centrare il nuovo riquadro
+                    const centerX = StateManager.crop.x + (StateManager.crop.w / 2);
+                    const centerY = StateManager.crop.y + (StateManager.crop.h / 2);
+
+                    StateManager.crop = {
+                        x: Math.max(0, Math.min(centerX - (newW / 2), StateManager.naturalWidth - newW)),
+                        y: Math.max(0, Math.min(centerY - (newH / 2), StateManager.naturalHeight - newH)),
+                        w: newW,
+                        h: newH
+                    };
+
+                    document.getElementById('widthInput').value = targetW;
+                    document.getElementById('heightInput').value = targetH;
+                }
+
+                StateManager.clampCropToBounds();
+                ViewportEngine.render();
+                this.updateCustomQualityCalc();
+            },
+
+            handleCustomDimensions() {
+                if (!StateManager.naturalWidth) return;
+
+                this.setPresetActive('free', 'free');
+
+                const widthEl = document.getElementById('widthInput');
+                const heightEl = document.getElementById('heightInput');
+
+                let targetW = parseInt(widthEl.value, 10) || 0;
+                let targetH = parseInt(heightEl.value, 10) || 0;
+
+                if (targetW <= 0 || targetH <= 0) return;
+
+                // Imposta l'Aspect Ratio corrispondente ai valori manuali inseriti
+                StateManager.aspectRatio = targetW / targetH;
+
+                // Se i valori inseriti superano i pixel dell'immagine sorgente, scala in proporzione
+                if (targetW > StateManager.naturalWidth || targetH > StateManager.naturalHeight) {
+                    const scale = Math.min(StateManager.naturalWidth / targetW, StateManager.naturalHeight / targetH);
+                    targetW = Math.round(targetW * scale);
+                    targetH = Math.round(targetH * scale);
+
+                    // AGGIORNAMENTO UI: sovrascrive i campi di testo con i valori reali clampati
+                    widthEl.value = targetW;
+                    heightEl.value = targetH;
+                }
+
+                // Calcola il nuovo riquadro mantenendo il punto centrale attuale
+                const centerX = StateManager.crop.x + (StateManager.crop.w / 2);
+                const centerY = StateManager.crop.y + (StateManager.crop.h / 2);
+
+                StateManager.crop = {
+                    w: targetW,
+                    h: targetH,
+                    x: Math.max(0, Math.min(centerX - (targetW / 2), StateManager.naturalWidth - targetW)),
+                    y: Math.max(0, Math.min(centerY - (targetH / 2), StateManager.naturalHeight - targetH))
+                };
+
+                // Clamp di sicurezza finale
+                StateManager.clampCropToBounds();
+                
+                ViewportEngine.render();
+                this.updateCustomQualityCalc();
+                StateManager.saveState();
+            },
+
+            updatePresetButtons() {
+                if (!StateManager.naturalWidth) return;
+
+                document.querySelectorAll('.preset-btn').forEach(btn => {
+                    const wStr = btn.dataset.w;
+                    const hStr = btn.dataset.h;
+
+                    // I preset 'free' e 'original' restano sempre attivi
+                    if (wStr === 'free' || wStr === 'original') {
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
+                        return;
+                    }
+
+                    const targetW = parseInt(wStr, 10);
+                    const targetH = parseInt(hStr, 10);
+
+                    // Disabilita il pulsante se una delle due dimensioni supera l'immagine sorgente
+                    if (targetW > StateManager.naturalWidth || targetH > StateManager.naturalHeight) {
+                        btn.disabled = true;
+                        btn.classList.add('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
+                    } else {
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
+                    }
+                });
+            },
+
+            reset() {
+                StateManager.naturalWidth = 0;
+                StateManager.naturalHeight = 0;
+                StateManager.historyStack = [];
+                StateManager.redoStack = [];
+                StateManager.updateUndoRedoUI();
+
+                document.getElementById('dropzone').classList.remove('hidden');
+                document.getElementById('editorWorkspace').classList.add('hidden');
+                document.getElementById('actionToolbar').classList.add('hidden');
+                document.getElementById('fileInput').value = '';
+            }
+        };
+
+        UI.init();
+    </script>
+</body>
+</html>

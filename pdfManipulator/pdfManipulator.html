@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Architect - Professional PDF Manipulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        .drag-over { border-color: #3b82f6 !important; background-color: #eff6ff !important; }
+        .dragging { opacity: 0.3; }
+        .drag-handle { cursor: grab; cursor: -webkit-grab; user-select: none; }
+        .drag-handle:active { cursor: grabbing; cursor: -webkit-grabbing; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-gray-900 pb-16">
+
+    <div class="max-w-7xl mx-auto p-6">
+        <!-- Header -->
+        <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
+            <div>
+                <a href="../index.html" class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-blue-600 transition-colors mb-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    Torna alla Home
+                </a>
+                <h1 class="text-3xl font-bold tracking-tight text-gray-900">PDF Architect</h1>
+                <p class="text-gray-500 text-sm mt-1">Manipolazione PDF professionale, modulare e 100% locale sul tuo browser.</p>
+            </div>
+            <!-- Azioni globali / Undo-Redo / Preview / Download -->
+            <div id="actionToolbar" class="hidden flex flex-wrap items-center gap-3">
+                
+                <!-- Pulsanti Undo / Redo Visivi -->
+                <div class="flex items-center bg-gray-100 rounded-xl p-1 border border-gray-200 mr-2">
+                    <button id="undoBtn" disabled title="Annulla (Ctrl+Z)" class="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                    </button>
+                    <button id="redoBtn" disabled title="Ripristina (Ctrl+Y)" class="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6"/></svg>
+                    </button>
+                </div>
+
+                <span id="selectedCount" class="text-sm font-medium text-gray-600 mr-2">0 pagine nel documento</span>
+                
+                <button id="previewBtn" class="bg-gray-800 hover:bg-gray-900 text-white font-medium px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    Anteprima PDF
+                </button>
+
+                <button id="downloadBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2.5 rounded-xl shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Esporta PDF
+                </button>
+            </div>
+        </header>
+
+        <!-- Area Dropzone Principale -->
+        <div id="dropzone" class="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center bg-white shadow-sm transition-all cursor-pointer hover:border-gray-400">
+            <svg class="mx-auto h-10 w-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <p class="text-base font-semibold text-gray-700">Trascina qui i tuoi file PDF o Immagini (PNG, JPG, WebP)</p>
+            <p class="text-xs text-gray-400 mt-1">Elaborazione protetta: nessun file viene inviato a server esterni</p>
+            <input type="file" id="fileInput" class="hidden" multiple accept=".pdf, .png, .jpg, .jpeg, .webp">
+        </div>
+
+        <!-- Pannello Strumenti e Aggiunta Pagine -->
+        <div id="editorControls" class="hidden mt-6 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            
+            <!-- Inserimento Pagine Vuote, Immagini & Svuota Tutto -->
+            <div class="flex flex-wrap items-center gap-2">
+                <button id="addBlankBtn" class="px-3.5 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Pagina Vuota
+                </button>
+                <button id="addMoreFilesBtn" class="px-3.5 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    Aggiungi File
+                </button>
+                
+                <button id="clearAllBtn" class="px-3.5 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors flex items-center gap-1.5 ml-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    Svuota Tutto
+                </button>
+            </div>
+
+            <!-- Filtro/Selezione Pagine -->
+            <div class="flex flex-wrap items-center gap-2 lg:border-l lg:border-r border-gray-200 lg:px-4 py-2 lg:py-0">
+                <input type="text" id="pageFilterInput" placeholder="es. 1-5, 8, 11-13" class="border border-gray-300 rounded-lg text-sm px-3 py-1.5 w-36 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <select id="filterModeSelect" class="border border-gray-300 rounded-lg text-sm px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="keep">Seleziona solo (Tieni)</option>
+                    <option value="delete">Elimina solo</option>
+                </select>
+                <button id="applyFilterBtn" class="bg-gray-800 hover:bg-gray-900 text-white font-medium text-sm px-3 py-1.5 rounded-lg transition-colors">
+                    Applica
+                </button>
+            </div>
+
+            <!-- Opzioni Layout & Uniformazione Dimensioni -->
+            <div class="flex flex-wrap items-center gap-4">
+                <label class="inline-flex items-center cursor-pointer text-sm font-medium text-gray-700 select-none">
+                    <input type="checkbox" id="normalizeSizeCheckbox" class="sr-only peer">
+                    <div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    <span class="ml-2">Uniforma dimensioni</span>
+                </label>
+
+                <div class="flex items-center gap-1.5">
+                    <label for="imgSizeMode" class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Img:</label>
+                    <select id="imgSizeMode" class="border border-gray-300 rounded-lg text-sm px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="a4">A4 Standard</option>
+                        <option value="original">Originale</option>
+                    </select>
+                </div>
+
+                <label class="inline-flex items-center cursor-pointer text-sm font-medium text-gray-700 select-none">
+                    <input type="checkbox" id="pageNumbersCheckbox" class="sr-only peer">
+                    <div class="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    <span class="ml-2">Numeri pag.</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Loader -->
+        <div id="loader" class="hidden text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent"></div>
+            <p class="text-sm text-gray-500 mt-2">Elaborazione in corso...</p>
+        </div>
+
+        <!-- Area Grid Anteprime -->
+        <div id="pagesGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-8"></div>
+    </div>
+
+    <!-- Modale Anteprima PDF Finale -->
+    <div id="previewModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex flex-col p-4 md:p-8">
+        <div class="bg-white rounded-2xl flex-1 flex flex-col overflow-hidden max-w-5xl w-full mx-auto shadow-2xl">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    Anteprima del PDF Finale
+                </h3>
+                <button id="closePreviewBtn" class="text-gray-400 hover:text-gray-800 p-1.5 rounded-lg text-xl font-bold transition-colors">&times;</button>
+            </div>
+            <div class="flex-1 bg-gray-100 relative">
+                <iframe id="previewFrame" class="w-full h-full border-0"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // 1. STATE MANAGER CON UNDO / REDO
+        const StateManager = {
+            pages: [], 
+            imageSizeMode: 'a4',
+            normalizeSizes: false,
+            addPageNumbers: false,
+
+            // Stack per storico annulla/ripristina
+            historyStack: [],
+            redoStack: [],
+
+            saveState() {
+                // Cloniamo la struttura delle pagine senza intaccare i riferimenti
+                this.historyStack.push(this.pages.map(page => ({ ...page })));
+                if (this.historyStack.length > 30) this.historyStack.shift(); // Limite 30 passaggi
+                this.redoStack = []; // Reset dello stack di redo dopo una nuova azione
+            },
+
+            undo() {
+                if (this.historyStack.length === 0) return;
+                this.redoStack.push(this.pages.map(page => ({ ...page })));
+                this.pages = this.historyStack.pop();
+                UIManager.render();
+            },
+
+            redo() {
+                if (this.redoStack.length === 0) return;
+                this.historyStack.push(this.pages.map(page => ({ ...page })));
+                this.pages = this.redoStack.pop();
+                UIManager.render();
+            },
+
+            async addFiles(files) {
+                UIManager.showLoader(true);
+                this.saveState();
+                for (const file of files) {
+                    if (file.type === 'application/pdf') {
+                        await PDFEngine.processPdfFile(file);
+                    } else if (file.type.startsWith('image/')) {
+                        await PDFEngine.processImageFile(file);
+                    }
+                }
+                UIManager.showLoader(false);
+                UIManager.render();
+            },
+
+            addBlankPage() {
+                this.saveState();
+                this.pages.push({
+                    id: crypto.randomUUID(),
+                    type: 'blank',
+                    title: 'Pagina Vuota',
+                    dataUrl: PDFEngine.generateBlankThumbnail(),
+                    rotation: 0
+                });
+                UIManager.render();
+            },
+
+            clearAll() {
+                if (confirm("Sei sicuro di voler rimuovere tutte le pagine dal documento?")) {
+                    this.saveState();
+                    this.pages = [];
+                    UIManager.render();
+                }
+            },
+
+            applyPageFilter(rangeStr, mode) {
+                if (!rangeStr.trim()) return;
+
+                const total = this.pages.length;
+                const matchedIndices = new Set();
+                const parts = rangeStr.split(',').map(s => s.trim()).filter(Boolean);
+
+                for (const part of parts) {
+                    if (part.includes('-')) {
+                        const [startStr, endStr] = part.split('-');
+                        let start = parseInt(startStr, 10);
+                        let end = parseInt(endStr, 10);
+                        if (!isNaN(start) && !isNaN(end)) {
+                            if (start > end) [start, end] = [end, start];
+                            for (let i = start; i <= end; i++) {
+                                if (i >= 1 && i <= total) matchedIndices.add(i - 1);
+                            }
+                        }
+                    } else {
+                        const pageNum = parseInt(part, 10);
+                        if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= total) {
+                            matchedIndices.add(pageNum - 1);
+                        }
+                    }
+                }
+
+                if (matchedIndices.size === 0) {
+                    alert("Nessuna pagina corrispondente all'intervallo inserito.");
+                    return;
+                }
+
+                this.saveState();
+                if (mode === 'keep') {
+                    this.pages = this.pages.filter((_, idx) => matchedIndices.has(idx));
+                } else if (mode === 'delete') {
+                    this.pages = this.pages.filter((_, idx) => !matchedIndices.has(idx));
+                }
+
+                UIManager.render();
+            },
+
+            removePage(index) {
+                this.saveState();
+                this.pages.splice(index, 1);
+                UIManager.render();
+            },
+
+            rotatePage(index) {
+                this.saveState();
+                this.pages[index].rotation = (this.pages[index].rotation + 90) % 360;
+                UIManager.render();
+            },
+
+            reorderPages(fromIndex, toIndex) {
+                this.saveState();
+                const [movedPage] = this.pages.splice(fromIndex, 1);
+                this.pages.splice(toIndex, 0, movedPage);
+                UIManager.render();
+            }
+        };
+
+        // 2. PDF ENGINE
+        const PDFEngine = {
+            plugins: [],
+
+            use(pluginFn) {
+                if (typeof pluginFn === 'function') this.plugins.push(pluginFn);
+            },
+
+            async runPlugins(context) {
+                for (const plugin of this.plugins) {
+                    await plugin(context);
+                }
+            },
+
+            async processPdfFile(file) {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer.slice(0) }).promise;
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const viewport = page.getViewport({ scale: 0.3 });
+                    
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+                    StateManager.pages.push({
+                        id: crypto.randomUUID(),
+                        type: 'pdf',
+                        srcBytes: arrayBuffer,
+                        pageIndex: i,
+                        title: `${file.name} (p. ${i})`,
+                        dataUrl: canvas.toDataURL('image/jpeg', 0.8),
+                        rotation: 0
+                    });
+                }
+            },
+
+            async processImageFile(file) {
+                const reader = new FileReader();
+                const dataUrl = await new Promise((resolve) => {
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+
+                const arrayBuffer = await file.arrayBuffer();
+
+                StateManager.pages.push({
+                    id: crypto.randomUUID(),
+                    type: 'image',
+                    fileType: file.type,
+                    srcBytes: arrayBuffer,
+                    title: file.name,
+                    dataUrl: dataUrl,
+                    rotation: 0
+                });
+            },
+
+            generateBlankThumbnail() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 150;
+                canvas.height = 210;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = '#e5e7eb';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+                return canvas.toDataURL();
+            },
+
+            async calculateMaxDimensions() {
+                let maxWidth = 595.28;
+                let maxHeight = 841.89;
+
+                for (const item of StateManager.pages) {
+                    if (item.type === 'pdf') {
+                        const srcDoc = await PDFLib.PDFDocument.load(item.srcBytes);
+                        const page = srcDoc.getPage(item.pageIndex - 1);
+                        const { width, height } = page.getSize();
+                        const isRotated90 = (item.rotation / 90) % 2 !== 0;
+                        const effectiveW = isRotated90 ? height : width;
+                        const effectiveH = isRotated90 ? width : height;
+
+                        if (effectiveW > maxWidth) maxWidth = effectiveW;
+                        if (effectiveH > maxHeight) maxHeight = effectiveH;
+                    }
+                }
+                return { maxWidth, maxHeight };
+            },
+
+            async generateBytes() {
+                const newDoc = await PDFLib.PDFDocument.create();
+
+                let maxDim = null;
+                if (StateManager.normalizeSizes) {
+                    maxDim = await this.calculateMaxDimensions();
+                }
+
+                for (const item of StateManager.pages) {
+                    if (item.type === 'blank') {
+                        const width = maxDim ? maxDim.maxWidth : 595.28;
+                        const height = maxDim ? maxDim.maxHeight : 841.89;
+                        const page = newDoc.addPage([width, height]);
+                        if (item.rotation) page.setRotation(PDFLib.degrees(item.rotation));
+                    } 
+                    else if (item.type === 'pdf') {
+                        const srcDoc = await PDFLib.PDFDocument.load(item.srcBytes);
+                        
+                        if (StateManager.normalizeSizes && maxDim) {
+                            const [embeddedPage] = await newDoc.embedPdf(srcDoc, [item.pageIndex - 1]);
+                            const page = newDoc.addPage([maxDim.maxWidth, maxDim.maxHeight]);
+                            
+                            const scale = Math.min(
+                                maxDim.maxWidth / embeddedPage.width,
+                                maxDim.maxHeight / embeddedPage.height
+                            );
+                            const width = embeddedPage.width * scale;
+                            const height = embeddedPage.height * scale;
+                            const x = (maxDim.maxWidth - width) / 2;
+                            const y = (maxDim.maxHeight - height) / 2;
+
+                            page.drawPage(embeddedPage, { x, y, width, height, rotate: PDFLib.degrees(item.rotation) });
+                        } else {
+                            const [copiedPage] = await newDoc.copyPages(srcDoc, [item.pageIndex - 1]);
+                            if (item.rotation) {
+                                const currentRot = copiedPage.getRotation().angle;
+                                copiedPage.setRotation(PDFLib.degrees(currentRot + item.rotation));
+                            }
+                            newDoc.addPage(copiedPage);
+                        }
+                    } 
+                    else if (item.type === 'image') {
+                        let embeddedImg;
+                        if (item.fileType === 'image/png') {
+                            embeddedImg = await newDoc.embedPng(item.srcBytes);
+                        } else {
+                            const jpegBytes = await this.convertToJpegBytes(item.dataUrl);
+                            embeddedImg = await newDoc.embedJpg(jpegBytes);
+                        }
+
+                        let pageWidth = maxDim ? maxDim.maxWidth : (StateManager.imageSizeMode === 'original' ? embeddedImg.width : 595.28);
+                        let pageHeight = maxDim ? maxDim.maxHeight : (StateManager.imageSizeMode === 'original' ? embeddedImg.height : 841.89);
+
+                        const page = newDoc.addPage([pageWidth, pageHeight]);
+                        const scale = Math.min(pageWidth / embeddedImg.width, pageHeight / embeddedImg.height);
+                        const imgWidth = embeddedImg.width * scale;
+                        const imgHeight = embeddedImg.height * scale;
+                        const x = (pageWidth - imgWidth) / 2;
+                        const y = (pageHeight - imgHeight) / 2;
+
+                        page.drawImage(embeddedImg, { x, y, width: imgWidth, height: imgHeight });
+                        if (item.rotation) page.setRotation(PDFLib.degrees(item.rotation));
+                    }
+                }
+
+                await this.runPlugins({ pdfDoc: newDoc, state: StateManager, pdfLib: PDFLib });
+                return await newDoc.save();
+            },
+
+            async openPreview() {
+                UIManager.showLoader(true);
+                const bytes = await this.generateBytes();
+                UIManager.showLoader(false);
+                
+                const blob = new Blob([bytes], { type: 'application/pdf' });
+                const blobUrl = URL.createObjectURL(blob);
+                
+                const iframe = document.getElementById('previewFrame');
+                iframe.src = blobUrl;
+                document.getElementById('previewModal').classList.remove('hidden');
+            },
+
+            async buildFinalPdf() {
+                UIManager.showLoader(true);
+                const bytes = await this.generateBytes();
+                UIManager.showLoader(false);
+                this.downloadBlob(bytes, 'documento_manipolato.pdf');
+            },
+
+            async convertToJpegBytes(dataUrl) {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        canvas.toBlob(async (blob) => {
+                            resolve(await blob.arrayBuffer());
+                        }, 'image/jpeg', 0.9);
+                    };
+                    img.src = dataUrl;
+                });
+            },
+
+            downloadBlob(bytes, filename) {
+                const blob = new Blob([bytes], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                link.click();
+                URL.revokeObjectURL(link.href);
+            }
+        };
+
+        // Plugin Numerazione
+        PDFEngine.use(async ({ pdfDoc, state, pdfLib }) => {
+            if (!state.addPageNumbers) return;
+
+            const pages = pdfDoc.getPages();
+            const font = await pdfDoc.embedFont(pdfLib.StandardFonts.Helvetica);
+            const total = pages.length;
+
+            pages.forEach((page, idx) => {
+                const { width } = page.getSize();
+                const text = `- ${idx + 1} / ${total} -`;
+                const textSize = 10;
+                const textWidth = font.widthOfTextAtSize(text, textSize);
+
+                page.drawText(text, {
+                    x: (width - textWidth) / 2,
+                    y: 20,
+                    size: textSize,
+                    font: font,
+                    color: pdfLib.rgb(0.4, 0.4, 0.4)
+                });
+            });
+        });
+
+        // 3. UI MANAGER
+        let draggedIndex = null;
+
+        const UIManager = {
+            init() {
+                const dropzone = document.getElementById('dropzone');
+                const fileInput = document.getElementById('fileInput');
+
+                dropzone.addEventListener('click', () => fileInput.click());
+                dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+                dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+                dropzone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropzone.classList.remove('drag-over');
+                    if (e.dataTransfer.files.length) StateManager.addFiles([...e.dataTransfer.files]);
+                });
+
+                fileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length) StateManager.addFiles([...e.target.files]);
+                });
+
+                document.getElementById('addBlankBtn').addEventListener('click', () => StateManager.addBlankPage());
+                document.getElementById('addMoreFilesBtn').addEventListener('click', () => fileInput.click());
+                document.getElementById('clearAllBtn').addEventListener('click', () => StateManager.clearAll());
+                
+                // Undo / Redo Listener Pulsanti
+                document.getElementById('undoBtn').addEventListener('click', () => StateManager.undo());
+                document.getElementById('redoBtn').addEventListener('click', () => StateManager.redo());
+
+                // Gestione Scorciatoie da Tastiera (Ctrl+Z / Ctrl+Y / Cmd+Z / Cmd+Shift+Z)
+                document.addEventListener('keydown', (e) => {
+                    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+                    const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+                    if (isCtrlOrCmd && e.key.toLowerCase() === 'z') {
+                        e.preventDefault();
+                        if (e.shiftKey) StateManager.redo();
+                        else StateManager.undo();
+                    } else if (isCtrlOrCmd && e.key.toLowerCase() === 'y') {
+                        e.preventDefault();
+                        StateManager.redo();
+                    }
+                });
+
+                // Listener Filtro Pagine
+                document.getElementById('applyFilterBtn').addEventListener('click', () => {
+                    const rangeStr = document.getElementById('pageFilterInput').value;
+                    const mode = document.getElementById('filterModeSelect').value;
+                    StateManager.applyPageFilter(rangeStr, mode);
+                });
+
+                document.getElementById('imgSizeMode').addEventListener('change', (e) => {
+                    StateManager.imageSizeMode = e.target.value;
+                });
+
+                document.getElementById('normalizeSizeCheckbox').addEventListener('change', (e) => {
+                    StateManager.normalizeSizes = e.target.checked;
+                });
+
+                document.getElementById('pageNumbersCheckbox').addEventListener('change', (e) => {
+                    StateManager.addPageNumbers = e.target.checked;
+                });
+
+                document.getElementById('previewBtn').addEventListener('click', () => PDFEngine.openPreview());
+                document.getElementById('downloadBtn').addEventListener('click', () => PDFEngine.buildFinalPdf());
+
+                document.getElementById('closePreviewBtn').addEventListener('click', () => {
+                    document.getElementById('previewModal').classList.add('hidden');
+                    document.getElementById('previewFrame').src = '';
+                });
+            },
+
+            showLoader(visible) {
+                document.getElementById('loader').classList.toggle('hidden', !visible);
+            },
+
+            render() {
+                const grid = document.getElementById('pagesGrid');
+                grid.innerHTML = '';
+
+                const totalPages = StateManager.pages.length;
+                document.getElementById('editorControls').classList.toggle('hidden', totalPages === 0);
+                document.getElementById('actionToolbar').classList.toggle('hidden', totalPages === 0);
+                document.getElementById('selectedCount').innerText = `${totalPages} pagine nel documento`;
+                document.getElementById('downloadBtn').disabled = totalPages === 0;
+
+                // Aggiorna lo stato visivo dei pulsanti Undo / Redo
+                document.getElementById('undoBtn').disabled = StateManager.historyStack.length === 0;
+                document.getElementById('redoBtn').disabled = StateManager.redoStack.length === 0;
+
+                StateManager.pages.forEach((page, i) => {
+                    const card = document.createElement('div');
+                    card.draggable = true;
+                    card.className = "relative bg-white p-2.5 rounded-xl border border-gray-200 shadow-sm transition-all group hover:shadow-md";
+                    
+                    card.addEventListener('dragstart', (e) => {
+                        draggedIndex = i;
+                        setTimeout(() => card.classList.add('dragging'), 0);
+                        e.dataTransfer.effectAllowed = 'move';
+                    });
+                    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+                    card.addEventListener('dragover', (e) => e.preventDefault());
+                    card.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        if (draggedIndex !== null && draggedIndex !== i) {
+                            StateManager.reorderPages(draggedIndex, i);
+                        }
+                    });
+
+                    card.innerHTML = `
+                        <div class="drag-handle absolute top-3 left-3 bg-white border-2 border-gray-900 text-gray-900 rounded-lg p-1 shadow-md hover:bg-gray-100 z-10" title="Trascina per riordinare">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m0 0V8a1.5 1.5 0 00-3 0m0 0V6a1.5 1.5 0 00-3 0"/></svg>
+                        </div>
+
+                        <div class="flex items-center justify-end mb-2 pl-8">
+                            <span class="bg-gray-900 text-white text-xs px-2 py-0.5 rounded-full font-bold mr-1">${i + 1}</span>
+                            <span class="text-[10px] uppercase font-semibold text-gray-400 truncate max-w-[60px]">${page.type}</span>
+                        </div>
+
+                        <div class="overflow-hidden rounded border border-gray-100 flex items-center justify-center bg-gray-50 h-36">
+                            <img src="${page.dataUrl}" style="transform: rotate(${page.rotation}deg);" class="max-h-full max-w-full object-contain transition-transform" alt="${page.title}">
+                        </div>
+
+                        <p class="truncate text-xs font-medium text-gray-600 mt-2 text-center" title="${page.title}">${page.title}</p>
+
+                        <div class="absolute inset-x-2 bottom-2 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm p-1.5 rounded-lg shadow-sm border border-gray-200 z-10">
+                            <button onclick="window.rotatePage(${i})" title="Ruota di 90°" class="p-1 hover:bg-gray-100 rounded text-gray-600">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            </button>
+                            <button onclick="window.removePage(${i})" title="Elimina Pagina" class="p-1 hover:bg-red-50 rounded text-red-600">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                        </div>
+                    `;
+
+                    grid.appendChild(card);
+                });
+            }
+        };
+
+        window.removePage = (i) => StateManager.removePage(i);
+        window.rotatePage = (i) => StateManager.rotatePage(i);
+
+        UIManager.init();
+    </script>
+</body>
+</html>
