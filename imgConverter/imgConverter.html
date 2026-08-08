@@ -483,6 +483,12 @@
                     this.activeHandle = target.dataset.handle;
                     this.dragStart = { x: imgPos.x, y: imgPos.y };
                     this.cropStart = { ...StateManager.crop };
+
+                    const activeBtn = document.querySelector('.preset-btn.active');
+                    if (activeBtn.dataset.w !== 'free' && activeBtn.dataset.w !== 'original') {
+                        StateManager.aspectRatio = null;
+                        UI.setPresetActive('free', 'free');
+                    }
                 } else if (target === this.cropBoxEl || this.cropBoxEl.contains(target)) {
                     // Inizio Spostamento Riquadro
                     e.stopPropagation();
